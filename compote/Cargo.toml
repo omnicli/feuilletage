@@ -1,0 +1,118 @@
+[package]
+name = "compote"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+authors.workspace = true
+license.workspace = true
+repository.workspace = true
+description = "A flexible configuration management library with advanced merging strategies"
+readme = "../README.md"
+keywords = ["configuration", "config", "yaml", "json", "toml"]
+categories = ["config", "parser-implementations"]
+publish = ["crates-io"]
+
+[features]
+default = ["yaml", "std"]
+std = [
+    "dep:atomic-write-file",
+    "dep:fs4",
+    "serde/std",
+    "serde_json/std",
+    "indexmap/std",
+    "toml?/std",
+    "regex?/std",
+    "chrono?/std",
+]  # Standard library support - enables file I/O, paths, env vars
+yaml = ["std", "dep:serde-saphyr"]
+json = []  # Enables the public JSON loading and serialization APIs
+toml = ["dep:toml"]
+regex = ["dep:regex", "compote-macros/regex"]
+chrono = ["dep:chrono"]
+all-formats = ["yaml", "json", "toml"]
+
+[dependencies]
+serde = { workspace = true }
+serde_json = { workspace = true }  # Always needed as intermediate format
+serde-saphyr = { workspace = true, optional = true }
+toml = { workspace = true, optional = true }
+regex = { workspace = true, optional = true }
+chrono = { workspace = true, optional = true }
+indexmap = { workspace = true }
+compote-macros = { workspace = true }
+hashbrown = { version = "0.17.1", default-features = false, features = ["default-hasher"] }
+atomic-write-file = { workspace = true, optional = true }
+fs4 = { workspace = true, optional = true }
+
+[dev-dependencies]
+serde_json = { workspace = true }
+serde-saphyr = { workspace = true }
+toml = { workspace = true }
+regex = { workspace = true }
+chrono = { workspace = true }
+tempfile = "3.27.0"
+serial_test = "4.0.1"
+
+[[example]]
+name = "simple_validation"
+required-features = ["json"]
+
+[[example]]
+name = "env_validation"
+required-features = ["json"]
+
+[[example]]
+name = "format_validation"
+required-features = ["yaml", "chrono"]
+
+[[example]]
+name = "debug_test"
+required-features = ["json"]
+
+[[example]]
+name = "type_coercion"
+required-features = ["json"]
+
+[[example]]
+name = "flexible_input"
+required-features = ["json"]
+
+[[example]]
+name = "duration_parsing"
+required-features = ["json"]
+
+[[example]]
+name = "aliases_and_flatten"
+required-features = ["json"]
+
+[[example]]
+name = "env_loading"
+required-features = ["json", "std"]
+
+[[example]]
+name = "env_minimal"
+required-features = ["json", "std"]
+
+[[example]]
+name = "map_to_vec"
+required-features = ["json"]
+
+[[example]]
+name = "mutable_by"
+required-features = ["json"]
+
+[[example]]
+name = "path_resolution"
+required-features = ["json", "std"]
+
+[[example]]
+name = "tagged_enum"
+required-features = ["json"]
+
+[[example]]
+name = "untagged_enum"
+required-features = ["json"]
+
+[[example]]
+name = "template_interpolation"
+required-features = ["json"]
