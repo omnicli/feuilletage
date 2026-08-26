@@ -1,0 +1,10 @@
+[package]
+name = "feuilletage-no-std-consumer"
+version = "0.0.0"
+edition = "2021"
+publish = false
+
+[workspace]
+
+[dependencies]
+feuilletage = { path = "../../", default-features = false }

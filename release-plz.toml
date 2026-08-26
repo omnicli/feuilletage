@@ -1,0 +1,17 @@
+[workspace]
+allow_dirty = false
+changelog_update = true
+dependencies_update = false
+git_release_enable = false
+git_tag_enable = false
+pr_branch_prefix = "release-plz-"
+publish = false
+semver_check = true
+
+[[package]]
+name = "feuilletage"
+git_tag_name = "v{{ version }}"
+
+[[package]]
+name = "feuilletage-macros"
+git_tag_name = "macros-v{{ version }}"

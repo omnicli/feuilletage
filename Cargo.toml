@@ -1,0 +1,23 @@
+[workspace]
+members = ["feuilletage", "feuilletage-macros"]
+exclude = [".worktrees/omni_branch"]
+resolver = "2"
+
+[workspace.package]
+edition = "2021"
+rust-version = "1.88"
+authors = ["Feuilletage Contributors"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/omnicli/feuilletage"
+
+[workspace.dependencies]
+feuilletage-macros = { version = "=0.1.0", path = "feuilletage-macros" }
+serde = { version = "1.0.229", default-features = false, features = ["alloc", "derive"] }
+serde_json = { version = "1.0.151", default-features = false, features = ["alloc"] }
+serde-saphyr = "1.1.0"
+toml = { version = "1.1.4", default-features = false, features = ["display", "parse", "serde"] }
+indexmap = { version = "2.14.0", default-features = false, features = ["serde"] }
+regex = { version = "1.13.1", default-features = false, features = ["perf", "unicode"] }
+chrono = { version = "0.4.45", default-features = false, features = ["alloc"] }
+atomic-write-file = "0.3.1"
+fs4 = "1.1.0"

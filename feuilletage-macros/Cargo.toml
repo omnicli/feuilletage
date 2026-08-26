@@ -1,0 +1,25 @@
+[package]
+name = "feuilletage-macros"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.88"
+authors = ["Feuilletage Contributors"]
+license = "MIT OR Apache-2.0"
+repository = "https://github.com/omnicli/feuilletage"
+description = "Procedural macros for the feuilletage configuration library"
+readme = "README.md"
+keywords = ["configuration", "config", "derive", "proc-macro"]
+categories = ["config", "development-tools::procedural-macro-helpers"]
+publish = ["crates-io"]
+
+[lib]
+proc-macro = true
+
+[features]
+default = []
+regex = []
+
+[dependencies]
+syn = { version = "3.0.4", features = ["full", "extra-traits"] }
+quote = "1.0.47"
+proc-macro2 = "1.0.107"
