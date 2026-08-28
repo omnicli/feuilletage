@@ -44,6 +44,9 @@ pub(crate) struct StructAllowMapConfig {
 /// Container-level attributes for enums and structs
 #[derive(Default)]
 pub(crate) struct ContainerAttributes {
+    /// Parse this type through an intermediate wire type, then project it with
+    /// `feuilletage::FromParsed`.
+    pub(crate) parse_as: Option<syn::Type>,
     /// Default mutable_by constraint for fields without a field-level override
     pub(crate) mutable_by: Option<Vec<String>>,
     /// Tag field name for internally tagged enums
@@ -140,6 +143,12 @@ fn try_parse_container_attributes(attrs: &[syn::Attribute]) -> syn::Result<Conta
         }
 
         attr.parse_nested_meta(|meta| {
+            if meta.path.is_ident("parse_as") {
+                let value = meta.value()?;
+                let value: syn::LitStr = value.parse()?;
+                container_attrs.parse_as = Some(value.parse()?);
+                return Ok(());
+            }
             if meta.path.is_ident("mutable_by") {
                 let value = meta.value()?;
                 let content;
@@ -1445,19 +1454,39 @@ pub(crate) fn parse_field_config_attributes(attrs: &[syn::Attribute]) -> FieldCo
 }
 
 pub(crate) fn validate_feuilletage_attributes(input: &syn::DeriveInput) -> syn::Result<()> {
-    try_parse_container_attributes(&input.attrs)?;
+    let container_attrs = try_parse_container_attributes(&input.attrs)?;
+    let is_projection = container_attrs.parse_as.is_some();
+
+    if is_projection && container_attrs.mutable_by.is_some() {
+        return Err(syn::Error::new(
+            container_attrs.parse_as.as_ref().unwrap().span(),
+            "`mutable_by` must be defined on the `parse_as` wire type",
+        ));
+    }
 
     match &input.data {
         syn::Data::Struct(data) => {
             for field in &data.fields {
-                try_parse_field_config_attributes(&field.attrs)?;
+                let field_attrs = try_parse_field_config_attributes(&field.attrs)?;
+                if is_projection && field_attrs.mutable_by.is_some() {
+                    return Err(syn::Error::new(
+                        field.span(),
+                        "`mutable_by` must be defined on the `parse_as` wire type",
+                    ));
+                }
             }
         }
         syn::Data::Enum(data) => {
             for variant in &data.variants {
                 try_parse_variant_attributes(&variant.attrs)?;
                 for field in &variant.fields {
-                    try_parse_field_config_attributes(&field.attrs)?;
+                    let field_attrs = try_parse_field_config_attributes(&field.attrs)?;
+                    if is_projection && field_attrs.mutable_by.is_some() {
+                        return Err(syn::Error::new(
+                            field.span(),
+                            "`mutable_by` must be defined on the `parse_as` wire type",
+                        ));
+                    }
                 }
             }
         }

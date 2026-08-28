@@ -13,7 +13,8 @@ pub mod coerce;
 pub mod config;
 /// Source/Level provenance metadata and [`Context`](context::Context).
 pub mod context;
-/// Deserialization trait [`FromContextValue`](de::FromContextValue) and primitives.
+/// Deserialization traits [`FromContextValue`](de::FromContextValue) and
+/// [`FromParsed`](de::FromParsed), plus primitive implementations.
 pub mod de;
 /// Fluent edit API ([`ConfigEntry`](edit::ConfigEntry), [`IntoPath`](edit::IntoPath)).
 pub mod edit;
@@ -47,7 +48,7 @@ pub use context::{
     Context, CustomLevel, CustomSource, Format, Level, MutabilityConstraint, Source,
 };
 
-pub use de::{AllowMapKeys, FromContextValue, MutabilityInfo};
+pub use de::{AllowMapKeys, FromContextValue, FromParsed, MutabilityInfo};
 pub use edit::{ConfigEntry, IntoPath, RemoveResult};
 pub use empty::IsEmpty;
 pub use error::{ConfigWarning, Error, ErrorTracker};

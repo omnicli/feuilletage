@@ -28,12 +28,30 @@ pub(crate) fn generate_enum_impl(
     where_clause: Option<&syn::WhereClause>,
 ) -> TokenStream {
     let skip_serialize = container_attrs.skip_serialize;
+    let mutability_info_impl = if let Some(parsed_type) = container_attrs.parse_as.as_ref() {
+        crate::generate_projection_mutability_info_impl(
+            name,
+            parsed_type,
+            impl_generics.clone(),
+            ty_generics.clone(),
+            where_clause,
+        )
+    } else {
+        quote! {
+            impl #impl_generics feuilletage::MutabilityInfo for #name #ty_generics #where_clause {
+                fn mutability_constraints() -> feuilletage::MutabilityConstraints {
+                    feuilletage::MutabilityHashMap::default()
+                }
+            }
+        }
+    };
     let base = if container_attrs.untagged {
         generate_untagged_enum_impl(
             name,
             variants,
+            container_attrs.parse_as.as_ref(),
             skip_serialize,
-            impl_generics,
+            impl_generics.clone(),
             extended_impl_generics,
             ty_generics.clone(),
             where_clause,
@@ -42,8 +60,9 @@ pub(crate) fn generate_enum_impl(
         generate_value_matched_enum_impl(
             name,
             variants,
+            container_attrs.parse_as.as_ref(),
             skip_serialize,
-            impl_generics,
+            impl_generics.clone(),
             extended_impl_generics,
             ty_generics.clone(),
             where_clause,
@@ -53,8 +72,9 @@ pub(crate) fn generate_enum_impl(
             name,
             variants,
             container_attrs.rename_all,
+            container_attrs.parse_as.as_ref(),
             skip_serialize,
-            impl_generics,
+            impl_generics.clone(),
             extended_impl_generics,
             ty_generics.clone(),
             where_clause,
@@ -65,6 +85,7 @@ pub(crate) fn generate_enum_impl(
             variants,
             tag,
             container_attrs.rename_all,
+            container_attrs.parse_as.as_ref(),
             skip_serialize,
             impl_generics,
             extended_impl_generics,
@@ -81,10 +102,15 @@ pub(crate) fn generate_enum_impl(
         let base: proc_macro2::TokenStream = base.into();
         TokenStream::from(quote! {
             #base
+            #mutability_info_impl
             #deserialize_impl
         })
     } else {
-        base
+        let base: proc_macro2::TokenStream = base.into();
+        TokenStream::from(quote! {
+            #base
+            #mutability_info_impl
+        })
     }
 }
 
@@ -95,6 +121,7 @@ fn generate_tagged_enum_impl(
     variants: &syn::punctuated::Punctuated<Variant, syn::Token![,]>,
     tag_field: &str,
     rename_all: Option<RenameAllCase>,
+    parsed_type: Option<&syn::Type>,
     skip_serialize: bool,
     impl_generics: syn::ImplGenerics,
     extended_impl_generics: syn::ImplGenerics,
@@ -286,8 +313,17 @@ fn generate_tagged_enum_impl(
         }
     };
 
-    let expanded = quote! {
-        impl #extended_impl_generics feuilletage::FromContextValue<__FeuilletageS, __FeuilletageL> for #name #ty_generics #where_clause {
+    let from_context_value_impl = if let Some(parsed_type) = parsed_type {
+        crate::generate_projection_impl(
+            name,
+            parsed_type,
+            extended_impl_generics,
+            ty_generics.clone(),
+            where_clause,
+        )
+    } else {
+        quote! {
+            impl #extended_impl_generics feuilletage::FromContextValue<__FeuilletageS, __FeuilletageL> for #name #ty_generics #where_clause {
             fn from_context_value(
                 value: &feuilletage::ContextValue<__FeuilletageS, __FeuilletageL>,
                 tracker: &mut feuilletage::ErrorTracker,
@@ -336,6 +372,11 @@ fn generate_tagged_enum_impl(
                 }
             }
         }
+        }
+    };
+
+    let expanded = quote! {
+        #from_context_value_impl
 
         #serialize_impl
     };
@@ -435,9 +476,11 @@ fn generate_tagged_enum_serialize_impl(
 }
 
 /// Generate FromContextValue implementation for untagged enums
+#[allow(clippy::too_many_arguments)]
 fn generate_untagged_enum_impl(
     name: &syn::Ident,
     variants: &syn::punctuated::Punctuated<Variant, syn::Token![,]>,
+    parsed_type: Option<&syn::Type>,
     skip_serialize: bool,
     impl_generics: syn::ImplGenerics,
     extended_impl_generics: syn::ImplGenerics,
@@ -848,8 +891,17 @@ fn generate_untagged_enum_impl(
         }
     };
 
-    let expanded = quote! {
-        impl #extended_impl_generics feuilletage::FromContextValue<__FeuilletageS, __FeuilletageL> for #name #ty_generics #where_clause {
+    let from_context_value_impl = if let Some(parsed_type) = parsed_type {
+        crate::generate_projection_impl(
+            name,
+            parsed_type,
+            extended_impl_generics,
+            ty_generics.clone(),
+            where_clause,
+        )
+    } else {
+        quote! {
+            impl #extended_impl_generics feuilletage::FromContextValue<__FeuilletageS, __FeuilletageL> for #name #ty_generics #where_clause {
             fn from_context_value(
                 value: &feuilletage::ContextValue<__FeuilletageS, __FeuilletageL>,
                 tracker: &mut feuilletage::ErrorTracker,
@@ -882,6 +934,11 @@ fn generate_untagged_enum_impl(
                 #fallback_handling
             }
         }
+        }
+    };
+
+    let expanded = quote! {
+        #from_context_value_impl
 
         #serialize_impl
     };
@@ -1246,6 +1303,7 @@ fn generate_external_tag_enum_impl(
     name: &syn::Ident,
     variants: &syn::punctuated::Punctuated<Variant, syn::Token![,]>,
     rename_all: Option<RenameAllCase>,
+    parsed_type: Option<&syn::Type>,
     skip_serialize: bool,
     impl_generics: syn::ImplGenerics,
     extended_impl_generics: syn::ImplGenerics,
@@ -1812,8 +1870,17 @@ fn generate_external_tag_enum_impl(
         )
     };
 
-    let expanded = quote! {
-        impl #extended_impl_generics feuilletage::FromContextValue<__FeuilletageS, __FeuilletageL> for #name #ty_generics #where_clause {
+    let from_context_value_impl = if let Some(parsed_type) = parsed_type {
+        crate::generate_projection_impl(
+            name,
+            parsed_type,
+            extended_impl_generics,
+            ty_generics.clone(),
+            where_clause,
+        )
+    } else {
+        quote! {
+            impl #extended_impl_generics feuilletage::FromContextValue<__FeuilletageS, __FeuilletageL> for #name #ty_generics #where_clause {
             fn from_context_value(
                 value: &feuilletage::ContextValue<__FeuilletageS, __FeuilletageL>,
                 tracker: &mut feuilletage::ErrorTracker,
@@ -1862,6 +1929,11 @@ fn generate_external_tag_enum_impl(
                 }
             }
         }
+        }
+    };
+
+    let expanded = quote! {
+        #from_context_value_impl
 
         #serialize_impl
     };
@@ -2177,9 +2249,11 @@ pub(crate) fn generate_deserialize_via_from_context_value(
 ///     Ask,
 /// }
 /// ```
+#[allow(clippy::too_many_arguments)]
 fn generate_value_matched_enum_impl(
     name: &syn::Ident,
     variants: &syn::punctuated::Punctuated<Variant, syn::Token![,]>,
+    parsed_type: Option<&syn::Type>,
     skip_serialize: bool,
     impl_generics: syn::ImplGenerics,
     extended_impl_generics: syn::ImplGenerics,
@@ -2292,8 +2366,17 @@ fn generate_value_matched_enum_impl(
         )
     };
 
-    let expanded = quote! {
-        impl #extended_impl_generics feuilletage::FromContextValue<__FeuilletageS, __FeuilletageL> for #name #ty_generics #where_clause {
+    let from_context_value_impl = if let Some(parsed_type) = parsed_type {
+        crate::generate_projection_impl(
+            name,
+            parsed_type,
+            extended_impl_generics,
+            ty_generics.clone(),
+            where_clause,
+        )
+    } else {
+        quote! {
+            impl #extended_impl_generics feuilletage::FromContextValue<__FeuilletageS, __FeuilletageL> for #name #ty_generics #where_clause {
             fn from_context_value(
                 value: &feuilletage::ContextValue<__FeuilletageS, __FeuilletageL>,
                 tracker: &mut feuilletage::ErrorTracker,
@@ -2305,6 +2388,11 @@ fn generate_value_matched_enum_impl(
                 #fallback_handling
             }
         }
+        }
+    };
+
+    let expanded = quote! {
+        #from_context_value_impl
 
         #serialize_impl
     };

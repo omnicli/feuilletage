@@ -21,6 +21,7 @@ mod allow_single_test;
 mod fallback_test;
 mod flatten_test;
 mod order_by_test;
+mod parse_as_test;
 mod post_process_test;
 mod rename_test;
 mod required_test;

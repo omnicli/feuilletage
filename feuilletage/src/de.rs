@@ -212,6 +212,32 @@ pub trait FromContextValue<S: SourceType = Source, L: LevelType = Level>: Sized 
     ) -> Result<Self, Error>;
 }
 
+/// Constructs a configuration type from an intermediate parsed representation.
+///
+/// Implement this trait on a target that uses
+/// `#[feuilletage(parse_as = "WireType")]`. The generated
+/// [`FromContextValue`] implementation first parses `Parsed`, then passes the
+/// result here together with the original, untouched input value and the same
+/// error tracker.
+///
+/// `S` and `L` are explicit trait parameters so implementations can support
+/// custom source and level types without using `impl Trait` in method
+/// signatures.
+pub trait FromParsed<Parsed, S: SourceType = Source, L: LevelType = Level>: Sized {
+    /// Projects `parsed` into the target configuration type.
+    ///
+    /// `original` is the value supplied to the target's
+    /// [`FromContextValue`] implementation, before any transforms or
+    /// `scalar_as` / `array_as` handling performed while parsing `Parsed`.
+    /// `tracker` is the same tracker used to parse `Parsed`, with its current
+    /// path preserved.
+    fn from_parsed(
+        parsed: Parsed,
+        original: &ContextValue<S, L>,
+        tracker: &mut ErrorTracker,
+    ) -> Result<Self, Error>;
+}
+
 /// Trait for types that expose their map key field names for detection.
 ///
 /// This trait is automatically implemented for types that use `#[feuilletage(allow_map(key = field))]`
@@ -268,6 +294,12 @@ impl<S: SourceType, L: LevelType> FromContextValue<S, L> for Value {
         _tracker: &mut ErrorTracker,
     ) -> Result<Self, Error> {
         Ok(Value::from(value))
+    }
+}
+
+impl MutabilityInfo for Value {
+    fn mutability_constraints() -> crate::merge::MutabilityConstraints {
+        crate::merge::MutabilityConstraints::default()
     }
 }
 
