@@ -132,12 +132,7 @@ fn test_relative_path_transform() {
     relative_path(&mut value, &context).unwrap();
 
     if let ContextValue::String(s, _) = &value {
-        // Should be resolved to absolute path
-        assert!(
-            s.ends_with("a/b/xx/yy") || s.ends_with("a\\b\\xx\\yy"),
-            "Got: {}",
-            s
-        );
+        assert_eq!(PathBuf::from(s), PathBuf::from("/a/b/xx/yy"));
     } else {
         panic!("Expected string");
     }
@@ -147,7 +142,7 @@ fn test_relative_path_transform() {
     relative_path(&mut value2, &context).unwrap();
 
     if let ContextValue::String(s, _) = &value2 {
-        assert_eq!(s, "/absolute/path");
+        assert_eq!(PathBuf::from(s), PathBuf::from("/absolute/path"));
     } else {
         panic!("Expected string");
     }
@@ -196,7 +191,7 @@ fn test_normalize_path_removes_dot() {
     let mut value = ContextValue::string("foo/./bar".to_string(), context.clone());
     normalize_path(&mut value, &context).unwrap();
     if let ContextValue::String(s, _) = &value {
-        assert_eq!(s, "foo/bar");
+        assert_eq!(PathBuf::from(s), PathBuf::from("foo/bar"));
     } else {
         panic!("Expected string");
     }
@@ -210,7 +205,7 @@ fn test_normalize_path_resolves_dotdot() {
     let mut value = ContextValue::string("foo/bar/../baz".to_string(), context.clone());
     normalize_path(&mut value, &context).unwrap();
     if let ContextValue::String(s, _) = &value {
-        assert_eq!(s, "foo/baz");
+        assert_eq!(PathBuf::from(s), PathBuf::from("foo/baz"));
     } else {
         panic!("Expected string");
     }
@@ -224,7 +219,7 @@ fn test_normalize_path_preserves_absolute() {
     let mut value = ContextValue::string("/foo/bar/../baz".to_string(), context.clone());
     normalize_path(&mut value, &context).unwrap();
     if let ContextValue::String(s, _) = &value {
-        assert_eq!(s, "/foo/baz");
+        assert_eq!(PathBuf::from(s), PathBuf::from("/foo/baz"));
     } else {
         panic!("Expected string");
     }
@@ -238,7 +233,7 @@ fn test_normalize_path_leading_dotdot() {
     let mut value = ContextValue::string("../foo/bar".to_string(), context.clone());
     normalize_path(&mut value, &context).unwrap();
     if let ContextValue::String(s, _) = &value {
-        assert_eq!(s, "../foo/bar");
+        assert_eq!(PathBuf::from(s), PathBuf::from("../foo/bar"));
     } else {
         panic!("Expected string");
     }

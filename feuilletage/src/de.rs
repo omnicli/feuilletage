@@ -223,6 +223,46 @@ pub trait FromContextValue<S: SourceType = Source, L: LevelType = Level>: Sized 
 /// `S` and `L` are explicit trait parameters so implementations can support
 /// custom source and level types without using `impl Trait` in method
 /// signatures.
+///
+/// # Example
+///
+/// ```
+/// # #[cfg(feature = "json")] {
+/// use feuilletage::{Config, ContextValue, Error, ErrorTracker, FromParsed};
+/// use feuilletage::context::{LevelType, SourceType};
+///
+/// #[derive(feuilletage::Config)]
+/// struct WireConfig {
+///     name: String,
+/// }
+///
+/// #[derive(feuilletage::Config)]
+/// #[feuilletage(parse_as = "WireConfig")]
+/// struct AppConfig {
+///     display_name: String,
+/// }
+///
+/// impl<S: SourceType, L: LevelType> FromParsed<WireConfig, S, L> for AppConfig {
+///     fn from_parsed(
+///         parsed: WireConfig,
+///         _original: &ContextValue<S, L>,
+///         _tracker: &mut ErrorTracker,
+///     ) -> Result<Self, Error> {
+///         Ok(Self {
+///             display_name: parsed.name.to_uppercase(),
+///         })
+///     }
+/// }
+///
+/// let mut config = Config::default();
+/// config.load_json(
+///     r#"{"name": "feuilletage"}"#,
+///     feuilletage::Context::new(feuilletage::Source::Programmatic, feuilletage::Level::User),
+/// );
+/// let app: AppConfig = config.deserialize().unwrap();
+/// assert_eq!(app.display_name, "FEUILLETAGE");
+/// # }
+/// ```
 pub trait FromParsed<Parsed, S: SourceType = Source, L: LevelType = Level>: Sized {
     /// Projects `parsed` into the target configuration type.
     ///
