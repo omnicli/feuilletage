@@ -101,21 +101,49 @@ impl<S: SourceType, L: LevelType> ContextValue<S, L> {
     // =========================================================================
 
     /// Creates a null value with the given context.
+    ///
+    /// ```
+    /// use feuilletage::{Context, ContextValue, Level, Source};
+    ///
+    /// let value = ContextValue::null(Context::new(Source::Programmatic, Level::Local));
+    /// assert!(value.is_null());
+    /// ```
     pub fn null(context: Context<S, L>) -> Self {
         ContextValue::Null(context)
     }
 
     /// Creates a boolean value with the given context.
+    ///
+    /// ```
+    /// use feuilletage::{Context, ContextValue, Level, Source};
+    ///
+    /// let value = ContextValue::bool(true, Context::new(Source::Programmatic, Level::Local));
+    /// assert_eq!(value.as_bool(), Some(true));
+    /// ```
     pub fn bool(b: bool, context: Context<S, L>) -> Self {
         ContextValue::Bool(b, context)
     }
 
     /// Creates an integer value with the given context.
+    ///
+    /// ```
+    /// use feuilletage::{Context, ContextValue, Level, Source};
+    ///
+    /// let value = ContextValue::int(8080, Context::new(Source::Programmatic, Level::Local));
+    /// assert_eq!(value.as_i64(), Some(8080));
+    /// ```
     pub fn int(i: i64, context: Context<S, L>) -> Self {
         ContextValue::Int(i, context)
     }
 
     /// Creates a floating-point value with the given context.
+    ///
+    /// ```
+    /// use feuilletage::{Context, ContextValue, Level, Source};
+    ///
+    /// let value = ContextValue::float(0.75, Context::new(Source::Programmatic, Level::Local));
+    /// assert_eq!(value.as_f64(), Some(0.75));
+    /// ```
     pub fn float(f: f64, context: Context<S, L>) -> Self {
         ContextValue::Float(f, context)
     }
@@ -123,6 +151,13 @@ impl<S: SourceType, L: LevelType> ContextValue<S, L> {
     /// Creates a string value with the given context.
     ///
     /// Accepts any type that implements `Into<String>`.
+    ///
+    /// ```
+    /// use feuilletage::{Context, ContextValue, Level, Source};
+    ///
+    /// let value = ContextValue::string("localhost", Context::new(Source::Programmatic, Level::Local));
+    /// assert_eq!(value.as_str(), Some("localhost"));
+    /// ```
     pub fn string(s: impl Into<String>, context: Context<S, L>) -> Self {
         ContextValue::String(s.into(), context)
     }
@@ -130,6 +165,14 @@ impl<S: SourceType, L: LevelType> ContextValue<S, L> {
     /// Creates an array value with the given context.
     ///
     /// The items should be ContextValue instances with their own contexts.
+    ///
+    /// ```
+    /// use feuilletage::{Context, ContextValue, Level, Source};
+    ///
+    /// let context = Context::new(Source::Programmatic, Level::Local);
+    /// let value = ContextValue::array(vec![ContextValue::int(1, context.clone())], context);
+    /// assert_eq!(value.as_array().unwrap()[0].as_i64(), Some(1));
+    /// ```
     pub fn array(items: Vec<ContextValue<S, L>>, context: Context<S, L>) -> Self {
         ContextValue::Array(items, context)
     }
@@ -137,6 +180,16 @@ impl<S: SourceType, L: LevelType> ContextValue<S, L> {
     /// Creates an object value with the given context.
     ///
     /// Uses [`IndexMap`] to preserve insertion order of keys.
+    ///
+    /// ```
+    /// use feuilletage::{Context, ContextValue, Level, OrderedMap, Source};
+    ///
+    /// let context = Context::new(Source::Programmatic, Level::Local);
+    /// let mut fields = OrderedMap::default();
+    /// fields.insert("port".to_string(), ContextValue::int(8080, context.clone()));
+    /// let value = ContextValue::object(fields, context);
+    /// assert_eq!(value.as_object().unwrap()["port"].as_i64(), Some(8080));
+    /// ```
     pub fn object(fields: IndexMap<String, ContextValue<S, L>>, context: Context<S, L>) -> Self {
         ContextValue::Object(fields, context)
     }
@@ -144,6 +197,17 @@ impl<S: SourceType, L: LevelType> ContextValue<S, L> {
     /// Creates a new value from a contextless [`Value`] and a context.
     ///
     /// This converts a contextless [`Value`] into a [`ContextValue`] with the specified context.
+    /// Nested values receive the same context.
+    ///
+    /// ```
+    /// use feuilletage::{Context, ContextValue, Level, Source, Value};
+    ///
+    /// let context = Context::new(Source::Programmatic, Level::User);
+    /// let value = ContextValue::new(Value::Array(vec![Value::Int(1)]), context);
+    /// let child = &value.as_array().unwrap()[0];
+    /// assert_eq!(child.as_i64(), Some(1));
+    /// assert_eq!(child.context().level, Level::User);
+    /// ```
     pub fn new(value: Value, context: Context<S, L>) -> Self {
         match value {
             Value::Null => ContextValue::Null(context),
@@ -175,6 +239,13 @@ impl<S: SourceType, L: LevelType> ContextValue<S, L> {
     // =========================================================================
 
     /// Returns a reference to the context of this value.
+    ///
+    /// ```
+    /// use feuilletage::{Context, ContextValue, Level, Source};
+    ///
+    /// let value = ContextValue::int(1, Context::new(Source::Programmatic, Level::User));
+    /// assert_eq!(value.context().level, Level::User);
+    /// ```
     pub fn context(&self) -> &Context<S, L> {
         match self {
             ContextValue::Null(ctx) => ctx,
@@ -188,6 +259,14 @@ impl<S: SourceType, L: LevelType> ContextValue<S, L> {
     }
 
     /// Returns a mutable reference to the context of this value.
+    ///
+    /// ```
+    /// use feuilletage::{Context, ContextValue, Level, Source};
+    ///
+    /// let mut value = ContextValue::int(1, Context::new(Source::Programmatic, Level::System));
+    /// value.context_mut().level = Level::Local;
+    /// assert_eq!(value.context().level, Level::Local);
+    /// ```
     pub fn context_mut(&mut self) -> &mut Context<S, L> {
         match self {
             ContextValue::Null(ctx) => ctx,
@@ -207,6 +286,13 @@ impl<S: SourceType, L: LevelType> ContextValue<S, L> {
     /// Returns the type name of this value for use in error messages.
     ///
     /// Returns one of: "null", "bool", "int", "float", "string", "array", "object".
+    ///
+    /// ```
+    /// use feuilletage::{Context, ContextValue, Level, Source};
+    ///
+    /// let value = ContextValue::float(1.5, Context::new(Source::Programmatic, Level::Local));
+    /// assert_eq!(value.type_name(), "float");
+    /// ```
     pub fn type_name(&self) -> &'static str {
         match self {
             ContextValue::Null(_) => "null",
@@ -259,6 +345,16 @@ impl<S: SourceType, L: LevelType> ContextValue<S, L> {
     // =========================================================================
 
     /// Returns a reference to the inner object if this value is an Object variant.
+    ///
+    /// ```
+    /// use feuilletage::{Context, ContextValue, Level, OrderedMap, Source};
+    ///
+    /// let context = Context::new(Source::Programmatic, Level::Local);
+    /// let mut fields = OrderedMap::default();
+    /// fields.insert("enabled".to_string(), ContextValue::bool(true, context.clone()));
+    /// let value = ContextValue::object(fields, context);
+    /// assert_eq!(value.as_object().unwrap()["enabled"].as_bool(), Some(true));
+    /// ```
     pub fn as_object(&self) -> Option<&IndexMap<String, ContextValue<S, L>>> {
         match self {
             ContextValue::Object(map, _) => Some(map),
@@ -267,6 +363,18 @@ impl<S: SourceType, L: LevelType> ContextValue<S, L> {
     }
 
     /// Returns a mutable reference to the inner object if this value is an Object variant.
+    ///
+    /// ```
+    /// use feuilletage::{Context, ContextValue, Level, OrderedMap, Source};
+    ///
+    /// let context = Context::new(Source::Programmatic, Level::Local);
+    /// let mut value = ContextValue::object(OrderedMap::default(), context.clone());
+    /// value.as_object_mut().unwrap().insert(
+    ///     "port".to_string(),
+    ///     ContextValue::int(8080, context),
+    /// );
+    /// assert_eq!(value.as_object().unwrap()["port"].as_i64(), Some(8080));
+    /// ```
     pub fn as_object_mut(&mut self) -> Option<&mut IndexMap<String, ContextValue<S, L>>> {
         match self {
             ContextValue::Object(map, _) => Some(map),
@@ -275,6 +383,14 @@ impl<S: SourceType, L: LevelType> ContextValue<S, L> {
     }
 
     /// Returns a reference to the inner array if this value is an Array variant.
+    ///
+    /// ```
+    /// use feuilletage::{Context, ContextValue, Level, Source};
+    ///
+    /// let context = Context::new(Source::Programmatic, Level::Local);
+    /// let value = ContextValue::array(vec![ContextValue::string("a", context.clone())], context);
+    /// assert_eq!(value.as_array().unwrap()[0].as_str(), Some("a"));
+    /// ```
     pub fn as_array(&self) -> Option<&Vec<ContextValue<S, L>>> {
         match self {
             ContextValue::Array(arr, _) => Some(arr),
@@ -283,6 +399,15 @@ impl<S: SourceType, L: LevelType> ContextValue<S, L> {
     }
 
     /// Returns a mutable reference to the inner array if this value is an Array variant.
+    ///
+    /// ```
+    /// use feuilletage::{Context, ContextValue, Level, Source};
+    ///
+    /// let context = Context::new(Source::Programmatic, Level::Local);
+    /// let mut value = ContextValue::array(Vec::new(), context.clone());
+    /// value.as_array_mut().unwrap().push(ContextValue::int(2, context));
+    /// assert_eq!(value.as_array().unwrap()[0].as_i64(), Some(2));
+    /// ```
     pub fn as_array_mut(&mut self) -> Option<&mut Vec<ContextValue<S, L>>> {
         match self {
             ContextValue::Array(arr, _) => Some(arr),
@@ -291,6 +416,17 @@ impl<S: SourceType, L: LevelType> ContextValue<S, L> {
     }
 
     /// Returns the inner string if this value is a String variant.
+    ///
+    /// ```
+    /// use feuilletage::{Context, ContextValue, Level, Source};
+    ///
+    /// let value = ContextValue::string("dev", Context::new(Source::Programmatic, Level::Local));
+    /// assert_eq!(value.as_str(), Some("dev"));
+    /// assert_eq!(
+    ///     ContextValue::<Source, Level>::int(1, Context::default()).as_str(),
+    ///     None,
+    /// );
+    /// ```
     pub fn as_str(&self) -> Option<&str> {
         match self {
             ContextValue::String(s, _) => Some(s),
@@ -299,6 +435,17 @@ impl<S: SourceType, L: LevelType> ContextValue<S, L> {
     }
 
     /// Returns the inner boolean if this value is a Bool variant.
+    ///
+    /// ```
+    /// use feuilletage::{Context, ContextValue, Level, Source};
+    ///
+    /// let value = ContextValue::bool(false, Context::new(Source::Programmatic, Level::Local));
+    /// assert_eq!(value.as_bool(), Some(false));
+    /// assert_eq!(
+    ///     ContextValue::<Source, Level>::null(Context::default()).as_bool(),
+    ///     None,
+    /// );
+    /// ```
     pub fn as_bool(&self) -> Option<bool> {
         match self {
             ContextValue::Bool(b, _) => Some(*b),
@@ -307,6 +454,17 @@ impl<S: SourceType, L: LevelType> ContextValue<S, L> {
     }
 
     /// Returns the inner integer if this value is an Int variant.
+    ///
+    /// ```
+    /// use feuilletage::{Context, ContextValue, Level, Source};
+    ///
+    /// let value = ContextValue::int(-3, Context::new(Source::Programmatic, Level::Local));
+    /// assert_eq!(value.as_i64(), Some(-3));
+    /// assert_eq!(
+    ///     ContextValue::<Source, Level>::float(3.0, Context::default()).as_i64(),
+    ///     None,
+    /// );
+    /// ```
     pub fn as_i64(&self) -> Option<i64> {
         match self {
             ContextValue::Int(i, _) => Some(*i),
@@ -315,6 +473,17 @@ impl<S: SourceType, L: LevelType> ContextValue<S, L> {
     }
 
     /// Returns the inner float if this value is a Float variant.
+    ///
+    /// ```
+    /// use feuilletage::{Context, ContextValue, Level, Source};
+    ///
+    /// let value = ContextValue::float(2.5, Context::new(Source::Programmatic, Level::Local));
+    /// assert_eq!(value.as_f64(), Some(2.5));
+    /// assert_eq!(
+    ///     ContextValue::<Source, Level>::int(2, Context::default()).as_f64(),
+    ///     None,
+    /// );
+    /// ```
     pub fn as_f64(&self) -> Option<f64> {
         match self {
             ContextValue::Float(f, _) => Some(*f),
@@ -324,6 +493,14 @@ impl<S: SourceType, L: LevelType> ContextValue<S, L> {
 }
 
 /// Convert a [`Value`] to a [`ContextValue`] with default context.
+///
+/// ```
+/// use feuilletage::{ContextValue, Value};
+///
+/// let value: ContextValue = Value::Int(7).into();
+/// assert_eq!(value.as_i64(), Some(7));
+/// assert_eq!(value.context(), &Default::default());
+/// ```
 impl<S: SourceType + Default, L: LevelType + Default> From<Value> for ContextValue<S, L> {
     fn from(value: Value) -> Self {
         ContextValue::new(value, Context::default())
@@ -331,6 +508,17 @@ impl<S: SourceType + Default, L: LevelType + Default> From<Value> for ContextVal
 }
 
 /// Convert a [`ContextValue`] to a [`Value`] (owned conversion, strips context).
+///
+/// ```
+/// use feuilletage::{Context, ContextValue, Level, Source, Value};
+///
+/// let contextual = ContextValue::string(
+///     "localhost",
+///     Context::new(Source::Programmatic, Level::User),
+/// );
+/// let value = Value::from(contextual);
+/// assert_eq!(value, Value::String("localhost".to_string()));
+/// ```
 impl<S: SourceType, L: LevelType> From<ContextValue<S, L>> for Value {
     fn from(cv: ContextValue<S, L>) -> Self {
         match cv {
@@ -348,6 +536,18 @@ impl<S: SourceType, L: LevelType> From<ContextValue<S, L>> for Value {
 }
 
 /// Convert a [`ContextValue`] reference to a [`Value`] (borrowed conversion, strips context).
+///
+/// ```
+/// use feuilletage::{Context, ContextValue, Level, Source, Value};
+///
+/// let contextual = ContextValue::int(
+///     42,
+///     Context::new(Source::Programmatic, Level::User),
+/// );
+/// let value = Value::from(&contextual);
+/// assert_eq!(value, Value::Int(42));
+/// assert_eq!(contextual.as_i64(), Some(42));
+/// ```
 impl<S: SourceType, L: LevelType> From<&ContextValue<S, L>> for Value {
     fn from(cv: &ContextValue<S, L>) -> Self {
         match cv {
@@ -413,7 +613,14 @@ pub enum Value {
 }
 
 impl Value {
-    /// Get type name for error messages
+    /// Gets the type name for error messages.
+    ///
+    /// ```
+    /// use feuilletage::Value;
+    ///
+    /// assert_eq!(Value::Array(Vec::new()).type_name(), "array");
+    /// assert_eq!(Value::Object(Default::default()).type_name(), "object");
+    /// ```
     pub fn type_name(&self) -> &'static str {
         match self {
             Value::Null => "null",
@@ -462,6 +669,15 @@ impl Value {
     }
 
     /// Returns a reference to the inner object if this value is an Object variant.
+    ///
+    /// ```
+    /// use feuilletage::{OrderedMap, Value};
+    ///
+    /// let mut fields = OrderedMap::default();
+    /// fields.insert("workers".to_string(), Value::Int(4));
+    /// let value = Value::Object(fields);
+    /// assert_eq!(value.as_object().unwrap()["workers"], Value::Int(4));
+    /// ```
     pub fn as_object(&self) -> Option<&IndexMap<String, Value>> {
         match self {
             Value::Object(map) => Some(map),
@@ -470,6 +686,17 @@ impl Value {
     }
 
     /// Returns a mutable reference to the inner object if this value is an Object variant.
+    ///
+    /// ```
+    /// use feuilletage::Value;
+    ///
+    /// let mut value = Value::Object(Default::default());
+    /// value
+    ///     .as_object_mut()
+    ///     .unwrap()
+    ///     .insert("debug".to_string(), Value::Bool(true));
+    /// assert_eq!(value.as_object().unwrap()["debug"].as_bool(), Some(true));
+    /// ```
     pub fn as_object_mut(&mut self) -> Option<&mut IndexMap<String, Value>> {
         match self {
             Value::Object(map) => Some(map),
@@ -478,6 +705,13 @@ impl Value {
     }
 
     /// Returns a reference to the inner array if this value is an Array variant.
+    ///
+    /// ```
+    /// use feuilletage::Value;
+    ///
+    /// let value = Value::Array(vec![Value::String("json".to_string())]);
+    /// assert_eq!(value.as_array().unwrap()[0].as_str(), Some("json"));
+    /// ```
     pub fn as_array(&self) -> Option<&Vec<Value>> {
         match self {
             Value::Array(arr) => Some(arr),
@@ -486,6 +720,14 @@ impl Value {
     }
 
     /// Returns a mutable reference to the inner array if this value is an Array variant.
+    ///
+    /// ```
+    /// use feuilletage::Value;
+    ///
+    /// let mut value = Value::Array(Vec::new());
+    /// value.as_array_mut().unwrap().push(Value::Int(1));
+    /// assert_eq!(value.as_array().unwrap(), &[Value::Int(1)]);
+    /// ```
     pub fn as_array_mut(&mut self) -> Option<&mut Vec<Value>> {
         match self {
             Value::Array(arr) => Some(arr),
@@ -494,6 +736,13 @@ impl Value {
     }
 
     /// Returns the inner string if this value is a String variant.
+    ///
+    /// ```
+    /// use feuilletage::Value;
+    ///
+    /// assert_eq!(Value::String("prod".to_string()).as_str(), Some("prod"));
+    /// assert_eq!(Value::Int(1).as_str(), None);
+    /// ```
     pub fn as_str(&self) -> Option<&str> {
         match self {
             Value::String(s) => Some(s),
@@ -502,6 +751,13 @@ impl Value {
     }
 
     /// Returns the inner boolean if this value is a Bool variant.
+    ///
+    /// ```
+    /// use feuilletage::Value;
+    ///
+    /// assert_eq!(Value::Bool(true).as_bool(), Some(true));
+    /// assert_eq!(Value::Null.as_bool(), None);
+    /// ```
     pub fn as_bool(&self) -> Option<bool> {
         match self {
             Value::Bool(b) => Some(*b),
@@ -510,6 +766,13 @@ impl Value {
     }
 
     /// Returns the inner integer if this value is an Int variant.
+    ///
+    /// ```
+    /// use feuilletage::Value;
+    ///
+    /// assert_eq!(Value::Int(10).as_i64(), Some(10));
+    /// assert_eq!(Value::Float(10.0).as_i64(), None);
+    /// ```
     pub fn as_i64(&self) -> Option<i64> {
         match self {
             Value::Int(i) => Some(*i),
@@ -518,6 +781,13 @@ impl Value {
     }
 
     /// Returns the inner float if this value is a Float variant.
+    ///
+    /// ```
+    /// use feuilletage::Value;
+    ///
+    /// assert_eq!(Value::Float(1.25).as_f64(), Some(1.25));
+    /// assert_eq!(Value::Int(1).as_f64(), None);
+    /// ```
     pub fn as_f64(&self) -> Option<f64> {
         match self {
             Value::Float(f) => Some(*f),
@@ -526,6 +796,19 @@ impl Value {
     }
 
     /// Converts this Value to a ContextValue with the given context.
+    ///
+    /// The context is attached recursively to every nested value.
+    ///
+    /// ```
+    /// use feuilletage::{Context, Level, Source, Value};
+    ///
+    /// let context = Context::new(Source::Programmatic, Level::Local);
+    /// let value = Value::Array(vec![Value::Int(1)]).with_context(context);
+    /// let child = value.as_array().unwrap().first().unwrap();
+    ///
+    /// assert_eq!(value.context().level, Level::Local);
+    /// assert_eq!(child.context().level, Level::Local);
+    /// ```
     pub fn with_context<S: SourceType, L: LevelType>(
         self,
         context: Context<S, L>,
@@ -539,11 +822,27 @@ impl Default for Value {
     ///
     /// This lets `Value` be used as a `#[feuilletage(default)]` field type
     /// (the field will resolve to `Value::Null` when missing).
+    ///
+    /// ```
+    /// use feuilletage::Value;
+    ///
+    /// assert_eq!(Value::default(), Value::Null);
+    /// ```
     fn default() -> Self {
         Value::Null
     }
 }
 
+/// Converts a JSON value recursively while preserving scalar number types.
+///
+/// ```
+/// use feuilletage::Value;
+///
+/// let value = Value::from(serde_json::json!({"enabled": true, "ports": [80, 443]}));
+/// let object = value.as_object().unwrap();
+/// assert_eq!(object["enabled"].as_bool(), Some(true));
+/// assert_eq!(object["ports"].as_array().unwrap()[1].as_i64(), Some(443));
+/// ```
 impl From<serde_json::Value> for Value {
     fn from(v: serde_json::Value) -> Self {
         match v {
@@ -611,7 +910,20 @@ pub enum MergeModifier {
     ToReplace,
 }
 
-/// Parse a key to extract any merge modifier suffix
+/// Parses a key and extracts any merge modifier suffix.
+///
+/// Keys without a recognized suffix use [`MergeModifier::Default`].
+///
+/// ```
+/// use feuilletage::value::parse_key_modifier;
+/// use feuilletage::MergeModifier;
+///
+/// assert_eq!(parse_key_modifier("host"), ("host".to_string(), MergeModifier::Default));
+/// assert_eq!(parse_key_modifier("host__tokeep").1, MergeModifier::ToKeep);
+/// assert_eq!(parse_key_modifier("items__toappend").1, MergeModifier::ToAppend);
+/// assert_eq!(parse_key_modifier("items__toprepend").1, MergeModifier::ToPrepend);
+/// assert_eq!(parse_key_modifier("server__toreplace").1, MergeModifier::ToReplace);
+/// ```
 pub fn parse_key_modifier(key: &str) -> (String, MergeModifier) {
     if let Some(base) = key.strip_suffix("__tokeep") {
         (base.to_string(), MergeModifier::ToKeep)

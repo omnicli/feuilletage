@@ -3,8 +3,8 @@ set -euo pipefail
 
 # rustdoc counts public items that contain at least one example. This is not
 # the number of doctests: one item can contain multiple doctest code blocks.
-readonly MIN_EXAMPLE_ITEMS=108
-readonly MIN_EXAMPLE_PERCENT=39.6
+readonly MIN_EXAMPLE_ITEMS=224
+readonly MIN_EXAMPLE_PERCENT=81.5
 
 repo_root=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/.." && pwd)
 cd "$repo_root"

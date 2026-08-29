@@ -22,7 +22,7 @@ use hashbrown::HashMap as MutabilityHashMap;
 /// merge skips that value.
 ///
 /// ```
-/// use feuilletage::{Context, ContextValue, Level, OrderedMap, Source};
+/// use feuilletage::{Context, ContextValue, Level, MutabilityConstraint, OrderedMap, Source};
 /// use feuilletage::error::ErrorTracker;
 /// use feuilletage::merge::merge_values;
 /// use feuilletage::value::MergeModifier;
@@ -49,6 +49,14 @@ use hashbrown::HashMap as MutabilityHashMap;
 ///     assert!(m.contains_key("a"));
 ///     assert!(m.contains_key("b"));
 /// }
+///
+/// let immutable = Context::new(Source::Default, Level::System)
+///     .with_mutability_constraint(MutabilityConstraint::Immutable);
+/// let mut base = ContextValue::Int(1, immutable);
+/// let new = ContextValue::Int(2, Context::new(Source::Programmatic, Level::Local));
+/// merge_values(&mut base, new, MergeModifier::Default, &mut tracker);
+/// assert!(matches!(base, ContextValue::Int(1, _)));
+/// assert!(tracker.has_errors());
 /// ```
 pub fn merge_values<S: SourceType, L: LevelType>(
     base: &mut ContextValue<S, L>,
@@ -185,7 +193,26 @@ fn has_constrained_descendant<S: SourceType, L: LevelType>(
     false
 }
 
-/// Check if a merge at a parent level would affect an immutable descendant
+/// Check if a merge at a parent level would affect an immutable descendant.
+///
+/// ```
+/// use feuilletage::{Context, ContextValue, Level, MutabilityConstraint, OrderedMap, Source};
+/// use feuilletage::merge::would_affect_immutable_descendant;
+///
+/// let mutable = Context::new(Source::Default, Level::System);
+/// let immutable = mutable.clone()
+///     .with_mutability_constraint(MutabilityConstraint::Immutable);
+/// let value = ContextValue::Object({
+///     let mut database = OrderedMap::default();
+///     database.insert("password".to_string(), ContextValue::string("secret", immutable));
+///     let mut root = OrderedMap::default();
+///     root.insert("database".to_string(), ContextValue::object(database, mutable.clone()));
+///     root
+/// }, mutable);
+///
+/// let path = ["database".to_string(), "password".to_string()];
+/// assert_eq!(would_affect_immutable_descendant(&value, &path), Some("database.password".into()));
+/// ```
 pub fn would_affect_immutable_descendant<S: SourceType, L: LevelType>(
     base: &ContextValue<S, L>,
     path_components: &[String],
@@ -242,6 +269,36 @@ pub type MutabilityConstraints = MutabilityHashMap<String, &'static [&'static st
 /// 2. If it does, check if `level` is in the allowed levels
 /// 3. If level is NOT allowed, skip the field and record a warning
 /// 4. If level IS allowed (or no constraint exists), merge normally
+///
+/// ```
+/// use feuilletage::{Context, ContextValue, Level, MutabilityConstraints, OrderedMap, Source};
+/// use feuilletage::error::ErrorTracker;
+/// use feuilletage::merge::merge_with_mutability_constraints;
+///
+/// let context = Context::new(Source::Programmatic, Level::System);
+/// let mut base = ContextValue::object(OrderedMap::default(), context.clone());
+/// let new = ContextValue::Object({
+///     let mut values = OrderedMap::default();
+///     values.insert("locked".to_string(), ContextValue::Int(1, context.clone()));
+///     values.insert("open".to_string(), ContextValue::Int(2, context.clone()));
+///     values
+/// }, context);
+/// let mut constraints = MutabilityConstraints::default();
+/// constraints.insert("locked".to_string(), &["user"]);
+/// let mut tracker = ErrorTracker::new();
+///
+/// merge_with_mutability_constraints(
+///     &mut base,
+///     new,
+///     &Level::System,
+///     &constraints,
+///     &mut tracker,
+/// );
+/// let values = base.as_object().unwrap();
+/// assert!(values.get("locked").is_none());
+/// assert_eq!(values.get("open").and_then(|value| value.as_i64()), Some(2));
+/// assert!(tracker.has_warnings());
+/// ```
 pub fn merge_with_mutability_constraints<S: SourceType, L: LevelType>(
     base: &mut ContextValue<S, L>,
     new: ContextValue<S, L>,

@@ -68,6 +68,19 @@ jobs:
           RUSTDOCFLAGS: -D warnings
       - run: ./scripts/check-rustdoc-example-coverage.sh
 
+  no-std:
+    name: no_std bare-metal target
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: thumbv7em-none-eabi
+      - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: no-std
+      - run: ./scripts/check-no-std.sh thumbv7em-none-eabi
+
   msrv:
     name: Rust 1.88 MSRV
     runs-on: ubuntu-latest

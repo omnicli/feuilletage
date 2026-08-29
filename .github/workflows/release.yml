@@ -97,12 +97,12 @@ jobs:
     steps:
       - name: Require release PR GitHub App configuration
         env:
-          APP_ID: ${{ vars.RELEASE_PR_APP_ID }}
+          APP_ID: ${{ secrets.OMNICLI_APP_ID }}
           APP_LOGIN: ${{ vars.RELEASE_PR_APP_LOGIN }}
-          APP_PRIVATE_KEY: ${{ secrets.RELEASE_PR_APP_PRIVATE_KEY }}
+          APP_PRIVATE_KEY: ${{ secrets.OMNICLI_PRIVATE_KEY }}
         run: |
           if [[ -z "$APP_ID" || -z "$APP_LOGIN" || -z "$APP_PRIVATE_KEY" ]]; then
-            echo "error: configure RELEASE_PR_APP_ID, RELEASE_PR_APP_LOGIN, and RELEASE_PR_APP_PRIVATE_KEY as documented in RELEASING.md" >&2
+            echo "error: configure OMNICLI_APP_ID, RELEASE_PR_APP_LOGIN, and OMNICLI_PRIVATE_KEY as documented in RELEASING.md" >&2
             exit 1
           fi
 
@@ -110,8 +110,8 @@ jobs:
         id: app-token
         uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
         with:
-          app-id: ${{ vars.RELEASE_PR_APP_ID }}
-          private-key: ${{ secrets.RELEASE_PR_APP_PRIVATE_KEY }}
+          app-id: ${{ secrets.OMNICLI_APP_ID }}
+          private-key: ${{ secrets.OMNICLI_PRIVATE_KEY }}
           permission-contents: write
           permission-pull-requests: write
 

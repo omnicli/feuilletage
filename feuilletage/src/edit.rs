@@ -143,6 +143,13 @@ use crate::value::{ContextValue, Value};
 /// Trait for types that can be converted into a path.
 ///
 /// This trait enables flexible path specification for navigation methods.
+///
+/// ```
+/// use feuilletage::IntoPath;
+///
+/// assert_eq!("server.http.port".into_path(), ["server", "http", "port"]);
+/// assert_eq!("labels.release\\.name".into_path(), ["labels", "release.name"]);
+/// ```
 pub trait IntoPath {
     /// Convert this value into a vector of path segments.
     fn into_path(self) -> Vec<String>;
@@ -337,6 +344,14 @@ impl<'a, S: SourceType, L: LevelType> ConfigEntry<'a, S, L> {
     }
 
     /// Get the current path as a slice.
+    ///
+    /// ```
+    /// use feuilletage::Config;
+    ///
+    /// let mut config = Config::default();
+    /// let entry = config.at("server").at("http.port");
+    /// assert_eq!(entry.path(), ["server", "http", "port"]);
+    /// ```
     pub fn path(&self) -> &[String] {
         &self.path
     }
@@ -348,6 +363,15 @@ impl<'a, S: SourceType, L: LevelType> ConfigEntry<'a, S, L> {
     /// Check if the path exists in the config.
     ///
     /// Returns `true` even if the value is `null` - the key exists.
+    ///
+    /// ```
+    /// use feuilletage::{Config, Value};
+    ///
+    /// let mut config = Config::default();
+    /// config.at("present").set(Value::Null).unwrap();
+    /// assert!(config.at("present").exists());
+    /// assert!(!config.at("missing").exists());
+    /// ```
     pub fn exists(&self) -> bool {
         self.get_config_value().is_some()
     }
@@ -356,6 +380,14 @@ impl<'a, S: SourceType, L: LevelType> ConfigEntry<'a, S, L> {
     ///
     /// Returns `None` if the path doesn't exist.
     /// Returns `Some(&ContextValue)` if it exists (may be `ContextValue::Null`).
+    ///
+    /// ```
+    /// use feuilletage::{Config, ContextValue};
+    ///
+    /// let mut config = Config::default();
+    /// config.at("port").set(8080).unwrap();
+    /// assert!(matches!(config.at("port").get(), Some(ContextValue::Int(8080, _))));
+    /// ```
     pub fn get(&self) -> Option<&ContextValue<S, L>> {
         self.get_config_value()
     }
@@ -370,6 +402,17 @@ impl<'a, S: SourceType, L: LevelType> ConfigEntry<'a, S, L> {
     /// Get a mutable ContextValue at the current path.
     ///
     /// Returns `None` if the path doesn't exist.
+    ///
+    /// ```
+    /// use feuilletage::{Config, ContextValue};
+    ///
+    /// let mut config = Config::default();
+    /// config.at("port").set(8080).unwrap();
+    /// if let Some(ContextValue::Int(port, _)) = config.at("port").get_config_mut() {
+    ///     *port = 9090;
+    /// }
+    /// assert!(matches!(config.get("port"), Some(ContextValue::Int(9090, _))));
+    /// ```
     pub fn get_config_mut(&mut self) -> Option<&mut ContextValue<S, L>> {
         self.get_config_value_mut()
     }
@@ -378,6 +421,15 @@ impl<'a, S: SourceType, L: LevelType> ConfigEntry<'a, S, L> {
     ///
     /// Returns the actual value if it exists and is not null,
     /// otherwise returns the provided default.
+    ///
+    /// ```
+    /// use feuilletage::{Config, Value};
+    ///
+    /// let mut config = Config::default();
+    /// config.at("port").set(8080).unwrap();
+    /// assert_eq!(config.at("port").get_or(Value::Int(3000)), Value::Int(8080));
+    /// assert_eq!(config.at("missing").get_or(Value::Int(3000)), Value::Int(3000));
+    /// ```
     pub fn get_or(&self, default: Value) -> Value {
         match self.get() {
             Some(ContextValue::Null(_)) | None => default,
@@ -389,6 +441,16 @@ impl<'a, S: SourceType, L: LevelType> ConfigEntry<'a, S, L> {
     ///
     /// If the path doesn't exist, creates it with the default value.
     /// Returns a mutable reference to the ContextValue.
+    ///
+    /// ```
+    /// use feuilletage::{Config, ContextValue, Value};
+    ///
+    /// let mut config = Config::default();
+    /// if let ContextValue::Int(value, _) = config.at("retries").get_or_insert(Value::Int(3)) {
+    ///     *value += 1;
+    /// }
+    /// assert!(matches!(config.get("retries"), Some(ContextValue::Int(4, _))));
+    /// ```
     pub fn get_or_insert(&mut self, default: Value) -> &mut ContextValue<S, L> {
         if !self.exists() {
             // Create the path with the default value
@@ -401,16 +463,40 @@ impl<'a, S: SourceType, L: LevelType> ConfigEntry<'a, S, L> {
     }
 
     /// Check if the value exists and is null.
+    ///
+    /// ```
+    /// use feuilletage::{Config, Value};
+    ///
+    /// let mut config = Config::default();
+    /// config.at("optional").set(Value::Null).unwrap();
+    /// assert!(config.at("optional").is_null());
+    /// ```
     pub fn is_null(&self) -> bool {
         matches!(self.get(), Some(ContextValue::Null(_)))
     }
 
     /// Check if the value exists and is an array.
+    ///
+    /// ```
+    /// use feuilletage::Config;
+    ///
+    /// let mut config = Config::default();
+    /// config.at("ports").push(8080).unwrap();
+    /// assert!(config.at("ports").is_array());
+    /// ```
     pub fn is_array(&self) -> bool {
         matches!(self.get(), Some(ContextValue::Array(_, _)))
     }
 
     /// Check if the value exists and is an object.
+    ///
+    /// ```
+    /// use feuilletage::Config;
+    ///
+    /// let mut config = Config::default();
+    /// config.at("server.port").set(8080).unwrap();
+    /// assert!(config.at("server").is_object());
+    /// ```
     pub fn is_object(&self) -> bool {
         matches!(self.get(), Some(ContextValue::Object(_, _)))
     }
@@ -425,6 +511,14 @@ impl<'a, S: SourceType, L: LevelType> ConfigEntry<'a, S, L> {
     ///
     /// Returns an error if traversing through a non-object value
     /// (e.g., trying to set "a.b.c" when "a.b" is an integer).
+    ///
+    /// ```
+    /// use feuilletage::{Config, ContextValue};
+    ///
+    /// let mut config = Config::default();
+    /// config.at("server.port").set(8080).unwrap();
+    /// assert!(matches!(config.get("server.port"), Some(ContextValue::Int(8080, _))));
+    /// ```
     pub fn set<T: Into<Value>>(mut self, value: T) -> Result<(), Error> {
         self.set_value_internal(value.into())
     }
@@ -432,6 +526,15 @@ impl<'a, S: SourceType, L: LevelType> ConfigEntry<'a, S, L> {
     /// Set a value only if the path doesn't already exist.
     ///
     /// Returns `Ok(true)` if the value was set, `Ok(false)` if it already existed.
+    ///
+    /// ```
+    /// use feuilletage::{Config, ContextValue};
+    ///
+    /// let mut config = Config::default();
+    /// assert!(config.at("port").set_if_missing(8080).unwrap());
+    /// assert!(!config.at("port").set_if_missing(3000).unwrap());
+    /// assert!(matches!(config.get("port"), Some(ContextValue::Int(8080, _))));
+    /// ```
     pub fn set_if_missing<T: Into<Value>>(mut self, value: T) -> Result<bool, Error> {
         if self.exists() {
             Ok(false)
@@ -449,6 +552,15 @@ impl<'a, S: SourceType, L: LevelType> ConfigEntry<'a, S, L> {
     ///
     /// Returns a `RemoveResult` which can be used to get the removed value
     /// or to prune empty ancestors.
+    ///
+    /// ```
+    /// use feuilletage::{Config, Value};
+    ///
+    /// let mut config = Config::default();
+    /// config.at("obsolete").set("old").unwrap();
+    /// assert_eq!(config.at("obsolete").remove().value(), Some(Value::String("old".into())));
+    /// assert!(!config.at("obsolete").exists());
+    /// ```
     pub fn remove(mut self) -> RemoveResult<'a, S, L> {
         let removed = self.remove_value_internal();
         RemoveResult {
@@ -466,6 +578,15 @@ impl<'a, S: SourceType, L: LevelType> ConfigEntry<'a, S, L> {
     ///
     /// If the path doesn't exist, creates an array with the value.
     /// If the path exists but is not an array, returns an error.
+    ///
+    /// ```
+    /// use feuilletage::{Config, ContextValue};
+    ///
+    /// let mut config = Config::default();
+    /// config.at("ports").push(8080).unwrap();
+    /// config.at("ports").push(9090).unwrap();
+    /// assert!(matches!(config.get("ports.1"), Some(ContextValue::Int(9090, _))));
+    /// ```
     pub fn push<T: Into<Value>>(mut self, value: T) -> Result<(), Error> {
         let config_value = value.into();
         let path_str = self.path.join(".");
@@ -500,6 +621,20 @@ impl<'a, S: SourceType, L: LevelType> ConfigEntry<'a, S, L> {
     /// # Errors
     ///
     /// Returns an error if the path doesn't exist or is not an array.
+    ///
+    /// ```
+    /// use feuilletage::{Config, ContextValue};
+    ///
+    /// let mut config = Config::default();
+    /// config.at("numbers").push(1).unwrap();
+    /// config.at("numbers").push(2).unwrap();
+    /// config.at("numbers").map(|value| {
+    ///     if let ContextValue::Int(number, _) = value {
+    ///         *number *= 10;
+    ///     }
+    /// }).unwrap();
+    /// assert!(matches!(config.get("numbers.1"), Some(ContextValue::Int(20, _))));
+    /// ```
     pub fn map<F>(mut self, mut f: F) -> Result<(), Error>
     where
         F: FnMut(&mut ContextValue<S, L>),
@@ -537,6 +672,20 @@ impl<'a, S: SourceType, L: LevelType> ConfigEntry<'a, S, L> {
     /// # Errors
     ///
     /// Returns an error if the path doesn't exist or is not an array.
+    ///
+    /// ```
+    /// use feuilletage::{Config, ContextValue};
+    ///
+    /// let mut config = Config::default();
+    /// for number in 1..=4 {
+    ///     config.at("numbers").push(number).unwrap();
+    /// }
+    /// config.at("numbers").filter(|value| {
+    ///     matches!(value, ContextValue::Int(number, _) if number % 2 == 0)
+    /// }).unwrap();
+    /// assert!(matches!(config.get("numbers.0"), Some(ContextValue::Int(2, _))));
+    /// assert!(matches!(config.get("numbers.1"), Some(ContextValue::Int(4, _))));
+    /// ```
     pub fn filter<F>(mut self, mut f: F) -> Result<(), Error>
     where
         F: FnMut(&ContextValue<S, L>) -> bool,
@@ -568,6 +717,31 @@ impl<'a, S: SourceType, L: LevelType> ConfigEntry<'a, S, L> {
     }
 
     /// Transform elements matching a predicate.
+    ///
+    /// ```
+    /// use feuilletage::{Config, ContextValue, Value};
+    ///
+    /// let mut config = Config::default();
+    /// config.at("items").set(Value::Array(vec![
+    ///     Value::Int(1),
+    ///     Value::Int(2),
+    ///     Value::Int(3),
+    ///     Value::Int(4),
+    /// ])).unwrap();
+    /// config.at("items").map_where(
+    ///     |value| matches!(value, ContextValue::Int(number, _) if number % 2 == 0),
+    ///     |value| {
+    ///         if let ContextValue::Int(number, _) = value {
+    ///             *number *= 2;
+    ///         }
+    ///     },
+    /// ).unwrap();
+    ///
+    /// assert!(matches!(config.get("items.0"), Some(ContextValue::Int(1, _))));
+    /// assert!(matches!(config.get("items.1"), Some(ContextValue::Int(4, _))));
+    /// assert!(matches!(config.get("items.2"), Some(ContextValue::Int(3, _))));
+    /// assert!(matches!(config.get("items.3"), Some(ContextValue::Int(8, _))));
+    /// ```
     ///
     /// # Errors
     ///
@@ -827,6 +1001,14 @@ pub struct RemoveResult<'a, S: SourceType = Source, L: LevelType = Level> {
 
 impl<'a, S: SourceType, L: LevelType> RemoveResult<'a, S, L> {
     /// Get the removed value without pruning.
+    ///
+    /// ```
+    /// use feuilletage::{Config, Value};
+    ///
+    /// let mut config = Config::default();
+    /// config.at("name").set("demo").unwrap();
+    /// assert_eq!(config.at("name").remove().value(), Some(Value::String("demo".into())));
+    /// ```
     pub fn value(self) -> Option<Value> {
         self.removed
     }
@@ -835,6 +1017,16 @@ impl<'a, S: SourceType, L: LevelType> RemoveResult<'a, S, L> {
     ///
     /// After removal, walks up the path and removes any empty objects
     /// or arrays until a non-empty ancestor is found.
+    ///
+    /// ```
+    /// use feuilletage::{Config, Value};
+    ///
+    /// let mut config = Config::default();
+    /// config.at("feature.old.enabled").set(false).unwrap();
+    /// let removed = config.at("feature.old.enabled").remove().prune();
+    /// assert_eq!(removed, Some(Value::Bool(false)));
+    /// assert!(!config.at("feature").exists());
+    /// ```
     pub fn prune(self) -> Option<Value> {
         if self.removed.is_some() {
             // Walk up the path and remove empty containers one at a time

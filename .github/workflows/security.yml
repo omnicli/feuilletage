@@ -1,5 +1,8 @@
 name: Security audit
 
+# Kept separate from CI so the weekly advisory scan does not start the full
+# build and test matrix.
+
 on:
   pull_request:
     branches: [main]

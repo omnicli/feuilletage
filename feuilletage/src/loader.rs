@@ -95,6 +95,23 @@ use crate::{
 /// # Availability
 ///
 /// This function is only available when the `std` feature is enabled.
+///
+/// ```
+/// # #[cfg(all(feature = "std", feature = "json"))] {
+/// use feuilletage::{loader, ContextValue, Level, Source};
+///
+/// let path = std::env::temp_dir().join("feuilletage-load-file.json");
+/// std::fs::write(&path, r#"{"port": 8080}"#).unwrap();
+///
+/// let value = loader::load_file::<Source, Level>(&path, Level::User)
+///     .unwrap()
+///     .unwrap();
+/// let values = value.as_object().unwrap();
+/// assert!(matches!(values.get("port"), Some(ContextValue::Int(8080, _))));
+///
+/// std::fs::remove_file(path).unwrap();
+/// # }
+/// ```
 #[cfg(feature = "std")]
 pub fn load_file<S: SourceType, L: LevelType>(
     path: impl AsRef<Path>,
@@ -559,6 +576,20 @@ impl<S: SourceType, L: LevelType> ConfigLoaderBuilder<S, L> {
     ///
     /// * `path` - Path to the config file
     /// * `level` - The Level to associate with values from this file
+    ///
+    /// ```
+    /// # #[cfg(all(feature = "std", feature = "json"))] {
+    /// use feuilletage::{loader, Level};
+    ///
+    /// let path = std::env::temp_dir().join("feuilletage-builder-load.json");
+    /// std::fs::write(&path, r#"{"name": "file"}"#).unwrap();
+    ///
+    /// let config = loader().load_file(&path, Level::User).build().unwrap();
+    /// assert_eq!(config.get("name").and_then(|value| value.as_str()), Some("file"));
+    ///
+    /// std::fs::remove_file(path).unwrap();
+    /// # }
+    /// ```
     pub fn load_file<P: AsRef<Path>>(self, path: P, level: L) -> Self {
         let path = path.as_ref();
         let context = Context::new(S::from_file(path.to_path_buf()), level.clone());
@@ -578,6 +609,23 @@ impl<S: SourceType, L: LevelType> ConfigLoaderBuilder<S, L> {
     /// * `path` - Path to the config file
     /// * `format` - Format to use when parsing the file
     /// * `level` - The level to associate with values from this file
+    ///
+    /// ```
+    /// # #[cfg(all(feature = "std", feature = "json"))] {
+    /// use feuilletage::{loader, Format, Level};
+    ///
+    /// let path = std::env::temp_dir().join("feuilletage-explicit-format.data");
+    /// std::fs::write(&path, r#"{"name": "explicit"}"#).unwrap();
+    ///
+    /// let config = loader()
+    ///     .load_file_with_format(&path, Format::Json, Level::User)
+    ///     .build()
+    ///     .unwrap();
+    /// assert_eq!(config.get("name").and_then(|value| value.as_str()), Some("explicit"));
+    ///
+    /// std::fs::remove_file(path).unwrap();
+    /// # }
+    /// ```
     pub fn load_file_with_format<P: AsRef<Path>>(self, path: P, format: Format, level: L) -> Self {
         let path = path.as_ref();
         let context = Context::new(S::from_file(path.to_path_buf()), level.clone());
@@ -591,6 +639,20 @@ impl<S: SourceType, L: LevelType> ConfigLoaderBuilder<S, L> {
     /// [`load_file`](Self::load_file) or
     /// [`load_file_with_format`](Self::load_file_with_format) whenever the
     /// format is known.
+    ///
+    /// ```
+    /// # #[cfg(all(feature = "std", feature = "json"))] {
+    /// use feuilletage::{loader, Format, Level};
+    ///
+    /// let path = std::env::temp_dir().join("feuilletage-auto-format");
+    /// std::fs::write(&path, r#"{"name": "detected"}"#).unwrap();
+    ///
+    /// let config = loader().load_file_auto(&path, Level::User).build().unwrap();
+    /// assert_eq!(config.loaded_format(), Format::Json);
+    ///
+    /// std::fs::remove_file(path).unwrap();
+    /// # }
+    /// ```
     pub fn load_file_auto<P: AsRef<Path>>(mut self, path: P, level: L) -> Self {
         let path = path.as_ref();
         match crate::loader::load_file_auto::<S, L>(path, level.clone()) {
@@ -630,6 +692,19 @@ impl<S: SourceType, L: LevelType> ConfigLoaderBuilder<S, L> {
     }
 
     /// Returns the list of files that were successfully loaded.
+    ///
+    /// ```
+    /// # #[cfg(all(feature = "std", feature = "json"))] {
+    /// use feuilletage::{loader, Level};
+    ///
+    /// let path = std::env::temp_dir().join("feuilletage-loaded-files.json");
+    /// std::fs::write(&path, "{}").unwrap();
+    /// let loader = loader().load_file(&path, Level::User);
+    ///
+    /// assert_eq!(loader.loaded_files(), &[path.clone()]);
+    /// std::fs::remove_file(path).unwrap();
+    /// # }
+    /// ```
     pub fn loaded_files(&self) -> &[std::path::PathBuf] {
         &self.loaded_files
     }
@@ -643,6 +718,27 @@ impl<S: SourceType, L: LevelType> ConfigLoaderBuilder<S, L> {
     /// # Arguments
     ///
     /// * `files` - Iterator of (path, level) pairs
+    ///
+    /// ```
+    /// # #[cfg(all(feature = "std", feature = "json"))] {
+    /// use feuilletage::{loader, Level};
+    ///
+    /// let dir = std::env::temp_dir();
+    /// let system = dir.join("feuilletage-files-system.json");
+    /// let user = dir.join("feuilletage-files-user.json");
+    /// std::fs::write(&system, r#"{"port": 80}"#).unwrap();
+    /// std::fs::write(&user, r#"{"port": 8080}"#).unwrap();
+    ///
+    /// let config = loader()
+    ///     .load_files([(&system, Level::System), (&user, Level::User)])
+    ///     .build()
+    ///     .unwrap();
+    /// assert_eq!(config.get("port").and_then(|value| value.as_i64()), Some(8080));
+    ///
+    /// std::fs::remove_file(system).unwrap();
+    /// std::fs::remove_file(user).unwrap();
+    /// # }
+    /// ```
     pub fn load_files<P, I>(mut self, files: I) -> Self
     where
         P: AsRef<Path>,
@@ -662,6 +758,23 @@ impl<S: SourceType, L: LevelType> ConfigLoaderBuilder<S, L> {
     /// Files that don't exist are silently skipped.
     /// I/O errors (permission denied, etc.), format errors, and parse errors
     /// are recorded in the error tracker.
+    ///
+    /// ```
+    /// # #[cfg(all(feature = "std", feature = "json"))] {
+    /// use feuilletage::{loader, Level, Source};
+    ///
+    /// let path = std::env::temp_dir().join("feuilletage-file-source.json");
+    /// std::fs::write(&path, r#"{"name": "environment"}"#).unwrap();
+    ///
+    /// let config = loader()
+    ///     .load_file_with_source(&path, Level::User, Source::Environment)
+    ///     .build()
+    ///     .unwrap();
+    /// assert_eq!(config.get("name").unwrap().context().source, Source::Environment);
+    ///
+    /// std::fs::remove_file(path).unwrap();
+    /// # }
+    /// ```
     pub fn load_file_with_source<P: AsRef<Path>>(self, path: P, level: L, source: S) -> Self {
         let path = path.as_ref();
         let context = Context::new(source, level.clone());
@@ -669,6 +782,19 @@ impl<S: SourceType, L: LevelType> ConfigLoaderBuilder<S, L> {
     }
 
     /// Add config from a string with specified format and level.
+    ///
+    /// ```
+    /// # #[cfg(feature = "json")] {
+    /// use feuilletage::{loader, ContextValue, Format, Level};
+    ///
+    /// let config = loader()
+    ///     .load_str(r#"{"port": 8080}"#, Format::Json, Level::User)
+    ///     .unwrap()
+    ///     .build()
+    ///     .unwrap();
+    /// assert!(matches!(config.get("port"), Some(ContextValue::Int(8080, _))));
+    /// # }
+    /// ```
     pub fn load_str(mut self, content: &str, format: Format, level: L) -> Result<Self, Error> {
         let context = Context::new(S::programmatic(), level.clone()).with_format(format.clone());
 
@@ -767,14 +893,28 @@ impl<S: SourceType, L: LevelType> ConfigLoaderBuilder<S, L> {
         result
     }
 
-    /// Merge all sources and deserialize, without enforcing struct-level mutability constraints.
+    /// Merge all sources and deserialize without requiring [`MutabilityInfo`].
     ///
-    /// This is similar to [`deserialize`](Self::deserialize), but does NOT enforce
-    /// the `#[feuilletage(mutable_by = [...])]` constraints from the target type.
-    /// Use this when you want to allow all values to be merged regardless of constraints.
+    /// Unlike [`deserialize`](Self::deserialize), this method does not read target-type
+    /// mutability metadata before merging. This is useful for any [`FromContextValue`]
+    /// target that does not implement [`MutabilityInfo`], such as a top-level collection.
     ///
-    /// Note: Runtime mutability constraints (set via `Context::with_mutability_constraint`)
-    /// are still enforced.
+    /// This does not bypass checks performed by [`FromContextValue`] itself. In particular,
+    /// `#[derive(Config)]` emits field-level `mutable_by` validation, so a disallowed value
+    /// can still fail during deserialization. Runtime mutability constraints set on values
+    /// are also enforced during merge.
+    ///
+    /// ```
+    /// # #[cfg(feature = "json")] {
+    /// use feuilletage::{loader, Format, Level};
+    ///
+    /// let mut values = loader()
+    ///     .load_str(r#"["first", "second"]"#, Format::Json, Level::User)
+    ///     .unwrap();
+    /// let values: Vec<String> = values.deserialize_unconstrained().unwrap();
+    /// assert_eq!(values, ["first", "second"]);
+    /// # }
+    /// ```
     ///
     /// # Errors
     ///
@@ -870,6 +1010,24 @@ impl<S: SourceType, L: LevelType> ConfigLoaderBuilder<S, L> {
     /// This method consumes the loader. If you need to read warnings after building,
     /// use the internal methods via `deserialize()` instead.
     ///
+    /// ```
+    /// # #[cfg(feature = "json")] {
+    /// use feuilletage::{loader, ContextValue, Format, Level};
+    ///
+    /// let config = loader()
+    ///     .load_str(r#"{"host": "localhost", "port": 8080}"#, Format::Json, Level::System)
+    ///     .unwrap()
+    ///     .load_str(r#"{"port": 3000}"#, Format::Json, Level::User)
+    ///     .unwrap()
+    ///     .build()
+    ///     .unwrap();
+    ///
+    /// assert_eq!(config.get("host").and_then(|value| value.as_str()), Some("localhost"));
+    /// assert!(matches!(config.get("port"), Some(ContextValue::Int(3000, _))));
+    /// assert_eq!(config.loaded_format(), Format::Json);
+    /// # }
+    /// ```
+    ///
     /// # Errors
     ///
     /// Returns an error if merging fails.
@@ -904,11 +1062,38 @@ impl<S: SourceType, L: LevelType> ConfigLoaderBuilder<S, L> {
     }
 
     /// Get access to the error tracker for warnings and non-fatal errors.
+    ///
+    /// ```
+    /// # #[cfg(feature = "std")] {
+    /// use feuilletage::{loader, Level};
+    ///
+    /// let path = std::env::temp_dir().join("feuilletage-errors.unsupported");
+    /// std::fs::write(&path, "value").unwrap();
+    /// let loader = loader().load_file(&path, Level::User);
+    ///
+    /// assert!(loader.errors().has_errors());
+    /// std::fs::remove_file(path).unwrap();
+    /// # }
+    /// ```
     pub fn errors(&self) -> &ErrorTracker {
         &self.tracker
     }
 
     /// Get mutable access to the error tracker.
+    ///
+    /// ```
+    /// # #[cfg(feature = "std")] {
+    /// use feuilletage::{loader, Level};
+    ///
+    /// let path = std::env::temp_dir().join("feuilletage-clear-errors.unsupported");
+    /// std::fs::write(&path, "value").unwrap();
+    /// let mut loader = loader().load_file(&path, Level::User);
+    /// loader.errors_mut().clear_errors();
+    ///
+    /// assert!(!loader.errors().has_errors());
+    /// std::fs::remove_file(path).unwrap();
+    /// # }
+    /// ```
     pub fn errors_mut(&mut self) -> &mut ErrorTracker {
         &mut self.tracker
     }

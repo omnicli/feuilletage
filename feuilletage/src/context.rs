@@ -640,6 +640,15 @@ impl Level {
     ///
     /// Higher-priority levels override lower-priority levels regardless of
     /// source insertion order.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feuilletage::Level;
+    ///
+    /// assert!(Level::Local.priority() > Level::User.priority());
+    /// assert!(Level::User.priority() > Level::System.priority());
+    /// ```
     pub fn priority(&self) -> u32 {
         match self {
             Level::System => 0,
@@ -764,6 +773,21 @@ impl Source {
     /// Returns a display name for this source.
     ///
     /// Used for error messages and debugging.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # #[cfg(feature = "std")] {
+    /// use feuilletage::Source;
+    /// use std::path::PathBuf;
+    ///
+    /// assert_eq!(Source::Environment.display_name(), "environment");
+    /// assert_eq!(
+    ///     Source::File(PathBuf::from("settings/app.toml")).display_name(),
+    ///     "settings/app.toml"
+    /// );
+    /// # }
+    /// ```
     pub fn display_name(&self) -> String {
         match self {
             #[cfg(feature = "std")]
@@ -779,6 +803,19 @@ impl Source {
     /// Returns the file path if this source represents a file.
     ///
     /// This is used for relative path resolution in transforms.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # #[cfg(feature = "std")] {
+    /// use feuilletage::Source;
+    /// use std::path::{Path, PathBuf};
+    ///
+    /// let source = Source::File(PathBuf::from("config/settings.yaml"));
+    /// assert_eq!(source.file_path(), Some(Path::new("config/settings.yaml")));
+    /// assert_eq!(Source::Programmatic.file_path(), None);
+    /// # }
+    /// ```
     #[cfg(feature = "std")]
     pub fn file_path(&self) -> Option<&Path> {
         match self {
@@ -867,6 +904,24 @@ impl Format {
     /// Get the default format based on enabled features
     ///
     /// Automatic fallback priority: yaml > toml > json
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feuilletage::Format;
+    ///
+    /// let expected = if cfg!(feature = "yaml") {
+    ///     Format::Yaml
+    /// } else if cfg!(feature = "toml") {
+    ///     Format::Toml
+    /// } else if cfg!(feature = "json") {
+    ///     Format::Json
+    /// } else {
+    ///     Format::Unknown
+    /// };
+    /// assert_eq!(Format::default_format(), expected);
+    /// assert_eq!(Format::default(), expected);
+    /// ```
     #[allow(unreachable_code)]
     pub const fn default_format() -> Self {
         #[cfg(feature = "yaml")]
@@ -1092,6 +1147,16 @@ impl<S: SourceType, L: LevelType> Context<S, L> {
     /// Sets the mutability constraint for this context.
     ///
     /// This controls whether and by whom the value can be overridden.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feuilletage::{Context, Level, MutabilityConstraint, Source};
+    ///
+    /// let ctx = Context::new(Source::Default, Level::System)
+    ///     .with_mutability_constraint(MutabilityConstraint::Immutable);
+    /// assert!(!ctx.can_be_overridden_by(&Level::Local));
+    /// ```
     pub fn with_mutability_constraint(mut self, constraint: MutabilityConstraint) -> Self {
         self.mutability = constraint;
         self
@@ -1121,6 +1186,17 @@ impl<S: SourceType, L: LevelType> Context<S, L> {
     ///
     /// This checks the mutability constraint to determine if the level is allowed
     /// to modify values with this context.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feuilletage::{Context, Level, Source};
+    ///
+    /// let ctx = Context::new(Source::Default, Level::System)
+    ///     .with_mutable_by(&["user"]);
+    /// assert!(ctx.can_be_overridden_by(&Level::User));
+    /// assert!(!ctx.can_be_overridden_by(&Level::Local));
+    /// ```
     pub fn can_be_overridden_by(&self, level: &L) -> bool {
         self.mutability.allows(level)
     }
@@ -1135,6 +1211,22 @@ impl<L: LevelType> Context<Source, L> {
     /// - `.yaml` or `.yml` → YAML
     /// - `.toml` → TOML
     /// - Other → Unknown
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// # #[cfg(feature = "std")] {
+    /// use feuilletage::{Context, Format, Level, Source};
+    /// use std::path::PathBuf;
+    ///
+    /// let ctx = Context::new_from_file(PathBuf::from("conf/service.yml"), Level::Local);
+    /// assert_eq!(ctx.format, Format::Yaml);
+    /// assert_eq!(ctx.source, Source::File(PathBuf::from("conf/service.yml")));
+    ///
+    /// let unknown = Context::new_from_file(PathBuf::from("conf/service.cfg"), Level::Local);
+    /// assert_eq!(unknown.format, Format::Unknown);
+    /// # }
+    /// ```
     #[cfg(feature = "std")]
     pub fn new_from_file(path: PathBuf, level: L) -> Self {
         let format = {
