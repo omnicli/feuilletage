@@ -173,6 +173,14 @@ grep -Fq '.head.repo.full_name == $repository' "$workflow"
 grep -Fq '.user.login == $app_login' "$workflow"
 # shellcheck disable=SC2016
 grep -Fq 'APP_LOGIN: ${{ vars.RELEASE_PR_APP_LOGIN }}' "$workflow"
+# shellcheck disable=SC2016
+grep -Fq 'APP_ID: ${{ secrets.OMNICLI_APP_ID }}' "$workflow"
+# shellcheck disable=SC2016
+grep -Fq 'APP_PRIVATE_KEY: ${{ secrets.OMNICLI_PRIVATE_KEY }}' "$workflow"
+# shellcheck disable=SC2016
+grep -Fq 'app-id: ${{ secrets.OMNICLI_APP_ID }}' "$workflow"
+# shellcheck disable=SC2016
+grep -Fq 'private-key: ${{ secrets.OMNICLI_PRIVATE_KEY }}' "$workflow"
 grep -Fq 'rust-lang/crates-io-auth-action@c6f97d42243bad5fab37ca0427f495c86d5b1a18' "$workflow"
 grep -Fq 'actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1' "$workflow"
 grep -Fq 'permission-contents: write' "$workflow"

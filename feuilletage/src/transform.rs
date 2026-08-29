@@ -146,7 +146,23 @@ impl<S: SourceType, L: LevelType> TransformRegistry<S, L> {
         Self::default()
     }
 
-    /// Register a transformation for an exact path
+    /// Register a transformation for an exact path.
+    ///
+    /// Multiple transforms for the same path run in registration order.
+    ///
+    /// ```
+    /// use feuilletage::{Context, ContextValue, Level, Source};
+    /// use feuilletage::transform::{to_uppercase, trim, TransformRegistry};
+    ///
+    /// let context = Context::new(Source::Programmatic, Level::User);
+    /// let mut value = ContextValue::string("  name  ", context.clone());
+    /// let mut registry = TransformRegistry::new();
+    /// registry.register_exact("service.name", trim);
+    /// registry.register_exact("service.name", to_uppercase);
+    /// registry.apply("service.name", &mut value, &context).unwrap();
+    ///
+    /// assert_eq!(value.as_str(), Some("NAME"));
+    /// ```
     pub fn register_exact(&mut self, path: &str, transform: TransformFn<S, L>) {
         self.exact_transforms
             .entry(path.to_string())
@@ -158,12 +174,41 @@ impl<S: SourceType, L: LevelType> TransformRegistry<S, L> {
     /// Currently supports:
     /// - `*.field` - matches any path ending with `.field`
     /// - `**` - matches any path
+    ///
+    /// ```
+    /// use feuilletage::{Context, ContextValue, Level, Source};
+    /// use feuilletage::transform::{to_uppercase, TransformRegistry};
+    ///
+    /// let context = Context::new(Source::Programmatic, Level::User);
+    /// let mut value = ContextValue::string("secret", context.clone());
+    /// let mut registry = TransformRegistry::new();
+    /// registry.register_pattern("*.password", to_uppercase);
+    /// registry.apply("database.password", &mut value, &context).unwrap();
+    ///
+    /// assert_eq!(value.as_str(), Some("SECRET"));
+    /// ```
     pub fn register_pattern(&mut self, pattern: &str, transform: TransformFn<S, L>) {
         self.pattern_transforms
             .push((pattern.to_string(), transform));
     }
 
-    /// Apply transformations to a value at a specific path
+    /// Apply transformations to a value at a specific path.
+    ///
+    /// Exact transforms run before matching pattern transforms.
+    ///
+    /// ```
+    /// use feuilletage::{Context, ContextValue, Level, Source};
+    /// use feuilletage::transform::{to_uppercase, trim, TransformRegistry};
+    ///
+    /// let context = Context::new(Source::Programmatic, Level::User);
+    /// let mut value = ContextValue::string("  admin  ", context.clone());
+    /// let mut registry = TransformRegistry::new();
+    /// registry.register_exact("user.name", trim);
+    /// registry.register_pattern("*.name", to_uppercase);
+    ///
+    /// registry.apply("user.name", &mut value, &context).unwrap();
+    /// assert_eq!(value.as_str(), Some("ADMIN"));
+    /// ```
     pub fn apply(
         &self,
         path: &str,
@@ -206,7 +251,36 @@ impl<S: SourceType, L: LevelType> TransformRegistry<S, L> {
         path == pattern
     }
 
-    /// Apply transformations recursively to a ContextValue tree
+    /// Apply transformations recursively to a [`ContextValue`] tree.
+    ///
+    /// Object keys and array indexes become dot-separated path components.
+    ///
+    /// ```
+    /// use feuilletage::{Context, ContextValue, Level, OrderedMap, Source};
+    /// use feuilletage::transform::{to_uppercase, TransformRegistry};
+    ///
+    /// let context = Context::new(Source::Programmatic, Level::User);
+    /// let mut root = ContextValue::Object({
+    ///     let mut values = OrderedMap::default();
+    ///     values.insert("names".to_string(), ContextValue::array(
+    ///         vec![ContextValue::string("first", context.clone())],
+    ///         context.clone(),
+    ///     ));
+    ///     values
+    /// }, context);
+    /// let mut registry = TransformRegistry::new();
+    /// registry.register_exact("names.0", to_uppercase);
+    /// registry.apply_to_tree(&mut root, "").unwrap();
+    ///
+    /// let names = root
+    ///     .as_object()
+    ///     .unwrap()
+    ///     .get("names")
+    ///     .unwrap()
+    ///     .as_array()
+    ///     .unwrap();
+    /// assert_eq!(names[0].as_str(), Some("FIRST"));
+    /// ```
     pub fn apply_to_tree(
         &self,
         value: &mut ContextValue<S, L>,

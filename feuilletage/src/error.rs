@@ -239,6 +239,23 @@ impl Error {
     ///
     /// This is typically a file path if a config source is available,
     /// otherwise it's the configuration path where the error occurred.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feuilletage::Error;
+    ///
+    /// let field_error = Error::InvalidValue {
+    ///     path: "server.port".to_string(),
+    ///     message: "must be positive".to_string(),
+    /// };
+    /// let parse_error = Error::ParseError {
+    ///     source: "config.toml".to_string(),
+    ///     message: "invalid table".to_string(),
+    /// };
+    /// assert_eq!(field_error.location(), "server.port");
+    /// assert_eq!(parse_error.location(), "config.toml");
+    /// ```
     pub fn location(&self) -> String {
         match self {
             Error::MissingField { path } => path.clone(),
@@ -376,6 +393,16 @@ impl ErrorTracker {
     /// and a root path of `""`.
     ///
     /// Equivalent to [`ErrorTracker::default`].
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feuilletage::ErrorTracker;
+    ///
+    /// let tracker = ErrorTracker::new();
+    /// assert_eq!(tracker.current_path(), "<root>");
+    /// assert!(!tracker.has_errors());
+    /// ```
     pub fn new() -> Self {
         Self {
             errors: Vec::new(),
@@ -389,6 +416,24 @@ impl ErrorTracker {
     /// Child trackers isolate diagnostics produced by speculative work. If the
     /// work succeeds, pass the child to [`ErrorTracker::commit_child`]; dropping
     /// it discards the diagnostics without changing this tracker.
+    ///
+    /// ```
+    /// use feuilletage::ErrorTracker;
+    ///
+    /// let mut tracker = ErrorTracker::new();
+    /// tracker.push_field("server");
+    ///
+    /// let mut accepted = tracker.child();
+    /// accepted.push_field("port");
+    /// accepted.record_invalid_value("must be positive");
+    /// tracker.commit_child(accepted);
+    /// assert_eq!(tracker.errors()[0].location(), "server.port");
+    ///
+    /// let mut rejected = tracker.child();
+    /// rejected.record_invalid_value("discarded diagnostic");
+    /// drop(rejected);
+    /// assert_eq!(tracker.errors().len(), 1);
+    /// ```
     pub fn child(&self) -> Self {
         Self {
             errors: Vec::new(),
@@ -401,12 +446,41 @@ impl ErrorTracker {
     ///
     /// This is typically used with a tracker returned by [`ErrorTracker::child`].
     /// The current path is not changed.
+    ///
+    /// ```
+    /// use feuilletage::ErrorTracker;
+    ///
+    /// let mut tracker = ErrorTracker::new();
+    /// let mut child = tracker.child();
+    /// child.record_warning("fallback selected");
+    /// tracker.commit_child(child);
+    /// assert_eq!(tracker.warnings().len(), 1);
+    /// assert_eq!(tracker.current_path(), "<root>");
+    /// ```
     pub fn commit_child(&mut self, child: Self) {
         self.errors.extend(child.errors);
         self.warnings.extend(child.warnings);
     }
 
-    /// Enter a field in the configuration path
+    /// Enter a field in the configuration path.
+    ///
+    /// Fields and indexes form one dotted path. [`pop`](Self::pop) returns to
+    /// the parent path without removing diagnostics already recorded there.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feuilletage::ErrorTracker;
+    ///
+    /// let mut tracker = ErrorTracker::new();
+    /// tracker.push_field("servers");
+    /// tracker.push_index(1);
+    /// tracker.push_field("port");
+    /// assert_eq!(tracker.current_path(), "servers.1.port");
+    ///
+    /// tracker.pop();
+    /// assert_eq!(tracker.current_path(), "servers.1");
+    /// ```
     pub fn push_field(&mut self, field: &str) {
         self.current_path
             .push(PathSegment::Field(field.to_string()));
@@ -441,12 +515,40 @@ impl ErrorTracker {
         path
     }
 
-    /// Record an error at the current path
+    /// Record an already constructed error.
+    ///
+    /// Unlike the specialized recording helpers, this preserves the location
+    /// stored in the supplied error.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feuilletage::{Error, ErrorTracker};
+    ///
+    /// let mut tracker = ErrorTracker::new();
+    /// tracker.push_field("ignored");
+    /// tracker.record(Error::MissingField {
+    ///     path: "database.host".to_string(),
+    /// });
+    /// assert_eq!(tracker.errors()[0].location(), "database.host");
+    /// ```
     pub fn record(&mut self, error: Error) {
         self.errors.push(error);
     }
 
-    /// Record an immutable override error at the current path
+    /// Record an immutable override error at the current path.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feuilletage::ErrorTracker;
+    ///
+    /// let mut tracker = ErrorTracker::new();
+    /// tracker.push_field("api_key");
+    /// tracker.record_immutable_override("environment");
+    /// assert_eq!(tracker.errors()[0].code(), "C111");
+    /// assert_eq!(tracker.errors()[0].location(), "environment");
+    /// ```
     pub fn record_immutable_override(&mut self, source: impl ToString) {
         let path = self.current_path();
         self.record(Error::ImmutableOverride {
@@ -455,7 +557,19 @@ impl ErrorTracker {
         });
     }
 
-    /// Record a type mismatch error at the current path
+    /// Record a type mismatch error at the current path.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feuilletage::ErrorTracker;
+    ///
+    /// let mut tracker = ErrorTracker::new();
+    /// tracker.push_field("retries");
+    /// tracker.record_type_mismatch("integer", "string");
+    /// assert_eq!(tracker.errors()[0].to_string(),
+    ///     "retries:0:C101:expected integer, got string");
+    /// ```
     pub fn record_type_mismatch(&mut self, expected: &str, actual: &str) {
         let path = self.current_path();
         self.record(Error::TypeMismatch {
@@ -465,7 +579,18 @@ impl ErrorTracker {
         });
     }
 
-    /// Record an invalid value error at the current path
+    /// Record an invalid value error at the current path.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feuilletage::ErrorTracker;
+    ///
+    /// let mut tracker = ErrorTracker::new();
+    /// tracker.push_field("timeout");
+    /// tracker.record_invalid_value("must be positive");
+    /// assert_eq!(tracker.errors()[0].to_string(), "timeout:0:C102:must be positive");
+    /// ```
     pub fn record_invalid_value(&mut self, message: impl Into<String>) {
         let path = self.current_path();
         self.record(Error::InvalidValue {
@@ -474,7 +599,19 @@ impl ErrorTracker {
         });
     }
 
-    /// Record a merge conflict error at the current path
+    /// Record a merge conflict error at the current path.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feuilletage::ErrorTracker;
+    ///
+    /// let mut tracker = ErrorTracker::new();
+    /// tracker.push_field("logging");
+    /// tracker.record_merge_conflict("object cannot replace a scalar");
+    /// assert_eq!(tracker.errors()[0].code(), "C105");
+    /// assert_eq!(tracker.errors()[0].location(), "logging");
+    /// ```
     pub fn record_merge_conflict(&mut self, message: impl Into<String>) {
         let path = self.current_path();
         self.record(Error::MergeConflict {
@@ -483,7 +620,18 @@ impl ErrorTracker {
         });
     }
 
-    /// Record a warning at the current path
+    /// Record a warning at the current path.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feuilletage::ErrorTracker;
+    ///
+    /// let mut tracker = ErrorTracker::new();
+    /// tracker.push_field("legacy_mode");
+    /// tracker.record_warning("deprecated setting");
+    /// assert_eq!(tracker.warnings()[0].path, "legacy_mode");
+    /// ```
     pub fn record_warning(&mut self, message: impl Into<String>) {
         self.warnings.push(ConfigWarning {
             path: self.current_path(),
@@ -496,6 +644,18 @@ impl ErrorTracker {
     /// Use this when copying a warning that already carries path information.
     /// Unlike [`record_warning`](Self::record_warning), this method does not use
     /// or modify the tracker's current path.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feuilletage::ErrorTracker;
+    ///
+    /// let mut tracker = ErrorTracker::new();
+    /// tracker.push_field("current");
+    /// tracker.record_warning_at("legacy.timeout", "deprecated field");
+    /// assert_eq!(tracker.warnings()[0].path, "legacy.timeout");
+    /// assert_eq!(tracker.current_path(), "current");
+    /// ```
     pub fn record_warning_at(&mut self, path: impl Into<String>, message: impl Into<String>) {
         self.warnings.push(ConfigWarning {
             path: path.into(),
@@ -513,6 +673,18 @@ impl ErrorTracker {
     /// * `field` - The field name that was constrained
     /// * `source_level` - The level that tried to set the value
     /// * `allowed_levels` - The levels that are allowed to modify this field
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feuilletage::ErrorTracker;
+    ///
+    /// let mut tracker = ErrorTracker::new();
+    /// tracker.record_mutability_warning("server.port", "system", &["local", "user"]);
+    /// let warning = &tracker.warnings()[0];
+    /// assert_eq!(warning.path, "server.port");
+    /// assert!(warning.message.contains("allowed by: [local, user]"));
+    /// ```
     pub fn record_mutability_warning(
         &mut self,
         field: &str,
@@ -530,48 +702,167 @@ impl ErrorTracker {
         });
     }
 
-    /// Check if any errors have been recorded
+    /// Check if any errors have been recorded.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feuilletage::ErrorTracker;
+    ///
+    /// let mut tracker = ErrorTracker::new();
+    /// assert!(!tracker.has_errors());
+    /// tracker.record_invalid_value("missing value");
+    /// assert!(tracker.has_errors());
+    /// ```
     pub fn has_errors(&self) -> bool {
         !self.errors.is_empty()
     }
 
-    /// Check if any warnings have been recorded
+    /// Check if any warnings have been recorded.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feuilletage::ErrorTracker;
+    ///
+    /// let mut tracker = ErrorTracker::new();
+    /// assert!(!tracker.has_warnings());
+    /// tracker.record_warning("using fallback");
+    /// assert!(tracker.has_warnings());
+    /// ```
     pub fn has_warnings(&self) -> bool {
         !self.warnings.is_empty()
     }
 
-    /// Get all recorded errors
+    /// Borrow all recorded errors without consuming the tracker.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feuilletage::ErrorTracker;
+    ///
+    /// let mut tracker = ErrorTracker::new();
+    /// tracker.record_invalid_value("first");
+    /// tracker.record_merge_conflict("second");
+    /// assert_eq!(tracker.errors().len(), 2);
+    /// assert!(tracker.has_errors());
+    /// ```
     pub fn errors(&self) -> &[Error] {
         &self.errors
     }
 
-    /// Get all recorded warnings
+    /// Borrow all recorded warnings without consuming the tracker.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feuilletage::ErrorTracker;
+    ///
+    /// let mut tracker = ErrorTracker::new();
+    /// tracker.record_warning_at("server.host", "using default");
+    /// assert_eq!(tracker.warnings()[0].message, "using default");
+    /// assert!(tracker.has_warnings());
+    /// ```
     pub fn warnings(&self) -> &[ConfigWarning] {
         &self.warnings
     }
 
-    /// Consume the tracker and return all errors
+    /// Consume the tracker and return all errors.
+    ///
+    /// Warnings are intentionally not included.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feuilletage::ErrorTracker;
+    ///
+    /// let mut tracker = ErrorTracker::new();
+    /// tracker.record_invalid_value("invalid root value");
+    /// tracker.record_warning("fallback available");
+    /// let errors = tracker.into_errors();
+    /// assert_eq!(errors.len(), 1);
+    /// assert_eq!(errors[0].code(), "C102");
+    /// ```
     pub fn into_errors(self) -> Vec<Error> {
         self.errors
     }
 
-    /// Consume the tracker and return all warnings
+    /// Consume the tracker and return all warnings.
+    ///
+    /// Errors are intentionally not included.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feuilletage::ErrorTracker;
+    ///
+    /// let mut tracker = ErrorTracker::new();
+    /// tracker.record_invalid_value("invalid root value");
+    /// tracker.record_warning("fallback available");
+    /// let warnings = tracker.into_warnings();
+    /// assert_eq!(warnings.len(), 1);
+    /// assert_eq!(warnings[0].message, "fallback available");
+    /// ```
     pub fn into_warnings(self) -> Vec<ConfigWarning> {
         self.warnings
     }
 
-    /// Clear all errors and warnings
+    /// Clear all errors and warnings.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feuilletage::ErrorTracker;
+    ///
+    /// let mut tracker = ErrorTracker::new();
+    /// tracker.record_invalid_value("invalid value");
+    /// tracker.record_warning("using fallback");
+    /// tracker.clear();
+    /// assert!(!tracker.has_errors());
+    /// assert!(!tracker.has_warnings());
+    /// ```
     pub fn clear(&mut self) {
         self.errors.clear();
         self.warnings.clear();
     }
 
-    /// Clear only errors (keeping warnings)
+    /// Clear only errors, keeping warnings.
+    ///
+    /// [`clear_warnings`](Self::clear_warnings) performs the inverse operation.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feuilletage::ErrorTracker;
+    ///
+    /// let mut tracker = ErrorTracker::new();
+    /// tracker.record_invalid_value("invalid value");
+    /// tracker.record_warning("fallback used");
+    /// tracker.clear_errors();
+    /// assert!(!tracker.has_errors());
+    /// assert!(tracker.has_warnings());
+    ///
+    /// tracker.clear_warnings();
+    /// assert!(!tracker.has_warnings());
+    /// ```
     pub fn clear_errors(&mut self) {
         self.errors.clear();
     }
 
-    /// Clear only warnings (keeping errors)
+    /// Clear only warnings, keeping errors.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use feuilletage::ErrorTracker;
+    ///
+    /// let mut tracker = ErrorTracker::new();
+    /// tracker.record_invalid_value("invalid value");
+    /// tracker.record_warning("using fallback");
+    /// tracker.clear_warnings();
+    /// assert!(tracker.has_errors());
+    /// assert!(!tracker.has_warnings());
+    /// ```
     pub fn clear_warnings(&mut self) {
         self.warnings.clear();
     }

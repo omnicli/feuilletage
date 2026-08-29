@@ -41,7 +41,18 @@ use crate::{
 };
 
 impl<S: SourceType, L: LevelType> ContextValue<S, L> {
-    /// Serialize to the original format based on context
+    /// Serialize to the original format based on context.
+    ///
+    /// ```
+    /// # #[cfg(feature = "json")] {
+    /// use feuilletage::{Context, ContextValue, Format, Level, Source};
+    ///
+    /// let context = Context::new(Source::Programmatic, Level::User)
+    ///     .with_format(Format::Json);
+    /// let value = ContextValue::string("feuilletage", context);
+    /// assert_eq!(value.serialize().unwrap(), "\"feuilletage\"");
+    /// # }
+    /// ```
     pub fn serialize(&self) -> Result<String, Error> {
         let format = match self.context().format {
             Format::Unknown => Format::default_format(),
@@ -90,6 +101,22 @@ impl<S: SourceType, L: LevelType> ContextValue<S, L> {
     /// Serialize to JSON
     ///
     /// Keys are sorted alphabetically for consistent output.
+    ///
+    /// ```
+    /// # #[cfg(feature = "json")] {
+    /// use feuilletage::{Context, ContextValue, Level, OrderedMap, Source};
+    ///
+    /// let context = Context::<Source, Level>::default();
+    /// let value = ContextValue::Object({
+    ///     let mut values = OrderedMap::default();
+    ///     values.insert("z".to_string(), ContextValue::Int(2, context.clone()));
+    ///     values.insert("a".to_string(), ContextValue::Int(1, context.clone()));
+    ///     values
+    /// }, context);
+    /// let json = value.to_json().unwrap();
+    /// assert!(json.find("\"a\"").unwrap() < json.find("\"z\"").unwrap());
+    /// # }
+    /// ```
     #[cfg(feature = "json")]
     pub fn to_json(&self) -> Result<String, Error> {
         let json_value = config_value_to_json_sorted(self);
@@ -102,6 +129,15 @@ impl<S: SourceType, L: LevelType> ContextValue<S, L> {
     /// Serialize to YAML
     ///
     /// Keys are sorted alphabetically for consistent output.
+    ///
+    /// ```
+    /// # #[cfg(feature = "yaml")] {
+    /// use feuilletage::{Context, ContextValue, Level, Source};
+    ///
+    /// let value = ContextValue::bool(true, Context::<Source, Level>::default());
+    /// assert_eq!(value.to_yaml().unwrap().trim(), "true");
+    /// # }
+    /// ```
     #[cfg(feature = "yaml")]
     pub fn to_yaml(&self) -> Result<String, Error> {
         // Convert to serde_json::Value with sorted keys
@@ -115,6 +151,20 @@ impl<S: SourceType, L: LevelType> ContextValue<S, L> {
     /// Serialize to TOML
     ///
     /// Keys are sorted alphabetically for consistent output.
+    ///
+    /// ```
+    /// # #[cfg(feature = "toml")] {
+    /// use feuilletage::{Context, ContextValue, Level, OrderedMap, Source};
+    ///
+    /// let context = Context::<Source, Level>::default();
+    /// let value = ContextValue::Object({
+    ///     let mut values = OrderedMap::default();
+    ///     values.insert("port".to_string(), ContextValue::Int(8080, context.clone()));
+    ///     values
+    /// }, context);
+    /// assert_eq!(value.to_toml().unwrap().trim(), "port = 8080");
+    /// # }
+    /// ```
     #[cfg(feature = "toml")]
     pub fn to_toml(&self) -> Result<String, Error> {
         let toml_value = config_value_to_toml_sorted(self);

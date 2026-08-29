@@ -388,6 +388,16 @@ impl<S: SourceType, L: LevelType> Config<S, L> {
     }
 
     /// Returns a mutable reference to the root configuration value.
+    ///
+    /// ```
+    /// use feuilletage::{Config, ContextValue, Value};
+    ///
+    /// let mut config = Config::default();
+    /// if let ContextValue::Object(values, _) = config.root_mut() {
+    ///     values.insert("enabled".into(), Value::Bool(true).into());
+    /// }
+    /// assert_eq!(config.get("enabled").and_then(ContextValue::as_bool), Some(true));
+    /// ```
     pub fn root_mut(&mut self) -> &mut ContextValue<S, L> {
         &mut self.root
     }
@@ -550,6 +560,21 @@ impl<S: SourceType, L: LevelType> Config<S, L> {
     /// # Errors
     ///
     /// Returns an error if the path does not exist.
+    ///
+    /// ```
+    /// use feuilletage::{Config, MutabilityConstraint};
+    ///
+    /// let mut config = Config::default();
+    /// config.at("port").set(8080).unwrap();
+    /// config
+    ///     .set_mutability_constraint("port", MutabilityConstraint::Immutable)
+    ///     .unwrap();
+    ///
+    /// assert_eq!(
+    ///     config.get("port").unwrap().context().mutability,
+    ///     MutabilityConstraint::Immutable,
+    /// );
+    /// ```
     pub fn set_mutability_constraint(
         &mut self,
         path: &str,
@@ -594,6 +619,31 @@ impl<S: SourceType, L: LevelType> Config<S, L> {
     ///
     /// Level names are matched against the `name()` method of levels,
     /// e.g., "system", "user", "local", or custom level names.
+    ///
+    /// ```
+    /// # #[cfg(feature = "yaml")] {
+    /// use feuilletage::{Config, Context, ContextValue, Level, Source};
+    ///
+    /// let mut config = Config::default();
+    /// config.load_yaml(
+    ///     "port: 8080\n",
+    ///     Context::new(Source::Programmatic, Level::System),
+    /// );
+    /// config.make_mutable_by("port", &["local"]).unwrap();
+    ///
+    /// config.load_yaml(
+    ///     "port: 3000\n",
+    ///     Context::new(Source::Programmatic, Level::User),
+    /// );
+    /// assert!(matches!(config.get("port"), Some(ContextValue::Int(8080, _))));
+    ///
+    /// config.load_yaml(
+    ///     "port: 4000\n",
+    ///     Context::new(Source::Programmatic, Level::Local),
+    /// );
+    /// assert!(matches!(config.get("port"), Some(ContextValue::Int(4000, _))));
+    /// # }
+    /// ```
     ///
     /// # Errors
     ///
@@ -796,18 +846,48 @@ impl<S: SourceType, L: LevelType> Config<S, L> {
     }
 
     /// Serialize to JSON
+    ///
+    /// ```
+    /// # #[cfg(feature = "json")] {
+    /// use feuilletage::Config;
+    ///
+    /// let mut config = Config::default();
+    /// config.at("enabled").set(true).unwrap();
+    /// assert_eq!(config.to_json().unwrap(), "{\n  \"enabled\": true\n}");
+    /// # }
+    /// ```
     #[cfg(feature = "json")]
     pub fn to_json(&self) -> Result<String, Error> {
         self.root.to_json()
     }
 
     /// Serialize to YAML
+    ///
+    /// ```
+    /// # #[cfg(feature = "yaml")] {
+    /// use feuilletage::Config;
+    ///
+    /// let mut config = Config::default();
+    /// config.at("enabled").set(true).unwrap();
+    /// assert_eq!(config.to_yaml().unwrap(), "enabled: true\n");
+    /// # }
+    /// ```
     #[cfg(feature = "yaml")]
     pub fn to_yaml(&self) -> Result<String, Error> {
         self.root.to_yaml()
     }
 
     /// Serialize to TOML
+    ///
+    /// ```
+    /// # #[cfg(feature = "toml")] {
+    /// use feuilletage::Config;
+    ///
+    /// let mut config = Config::default();
+    /// config.at("enabled").set(true).unwrap();
+    /// assert_eq!(config.to_toml().unwrap(), "enabled = true\n");
+    /// # }
+    /// ```
     #[cfg(feature = "toml")]
     pub fn to_toml(&self) -> Result<String, Error> {
         self.root.to_toml()
@@ -1577,6 +1657,25 @@ impl<S: SourceType, L: LevelType> Config<S, L> {
     /// Supported patterns:
     /// - `*.field` - matches any path ending with `.field`
     /// - `**` - matches any path
+    ///
+    /// ```
+    /// use feuilletage::Config;
+    ///
+    /// let mut config = Config::default();
+    /// config.at("server.host").set("  api.example.com  ").unwrap();
+    /// config.at("database.host").set("  db.example.com  ").unwrap();
+    /// config.register_transform_pattern("*.host", feuilletage::transform::trim);
+    /// config.apply_transformations().unwrap();
+    ///
+    /// assert_eq!(
+    ///     config.get("server.host").and_then(|value| value.as_str()),
+    ///     Some("api.example.com"),
+    /// );
+    /// assert_eq!(
+    ///     config.get("database.host").and_then(|value| value.as_str()),
+    ///     Some("db.example.com"),
+    /// );
+    /// ```
     pub fn register_transform_pattern(
         &mut self,
         pattern: &str,
@@ -1586,6 +1685,17 @@ impl<S: SourceType, L: LevelType> Config<S, L> {
     }
 
     /// Applies all registered transformations to the configuration tree.
+    ///
+    /// ```
+    /// use feuilletage::Config;
+    ///
+    /// let mut config = Config::default();
+    /// config.at("name").set("  demo  ").unwrap();
+    /// config.register_transform("name", feuilletage::transform::trim);
+    /// config.apply_transformations().unwrap();
+    ///
+    /// assert_eq!(config.get("name").and_then(|value| value.as_str()), Some("demo"));
+    /// ```
     ///
     /// # Errors
     ///
@@ -1719,6 +1829,15 @@ impl<L: LevelType> Config<Source, L> {
     /// parser succeeds. Prefer [`load_file`](Self::load_file) for recognized
     /// extensions or [`load_file_with_format`](Self::load_file_with_format)
     /// when the format is known.
+    ///
+    /// ```no_run
+    /// use feuilletage::{Config, Level};
+    ///
+    /// let mut config = Config::default();
+    /// if config.load_file_auto("config.data", Level::User) {
+    ///     println!("Detected {:?}", config.loaded_format());
+    /// }
+    /// ```
     pub fn load_file_auto(&mut self, path: impl AsRef<Path>, level: L) -> bool {
         let path = path.as_ref();
         match loader::load_file_auto(path, level) {
@@ -1738,6 +1857,14 @@ impl<L: LevelType> Config<Source, L> {
     }
 
     /// Loads configuration from a file using an explicit format.
+    ///
+    /// ```no_run
+    /// use feuilletage::{Config, Format, Level};
+    ///
+    /// let mut config = Config::default();
+    /// let loaded = config.load_file_with_format("config.data", Format::Json, Level::User);
+    /// assert!(loaded || config.has_errors());
+    /// ```
     pub fn load_file_with_format(
         &mut self,
         path: impl AsRef<Path>,
@@ -1765,6 +1892,16 @@ impl<L: LevelType> Config<Source, L> {
     ///
     /// This allows you to check which configuration files were actually found
     /// and loaded, which is useful for debugging or logging.
+    ///
+    /// ```no_run
+    /// use feuilletage::{Config, Level};
+    ///
+    /// let mut config = Config::default();
+    /// config.load_file("config.yaml", Level::User);
+    /// for path in config.loaded_files() {
+    ///     println!("Loaded {}", path.display());
+    /// }
+    /// ```
     pub fn loaded_files(&self) -> &[PathBuf] {
         &self.loaded_files
     }
@@ -1783,6 +1920,12 @@ impl<L: LevelType> Config<Source, L> {
 /// directly: `Config::<MySource, MyLevel>::edit_file(...)`.
 ///
 /// See [`Config::edit_file`] for full documentation.
+///
+/// ```no_run
+/// use feuilletage::edit_file;
+///
+/// edit_file("config.yaml", |config| config.at("enabled").set(true).is_ok()).unwrap();
+/// ```
 #[cfg(feature = "std")]
 pub fn edit_file<P, F>(path: P, edit_fn: F) -> io::Result<bool>
 where
@@ -1793,6 +1936,15 @@ where
 }
 
 /// Edit a configuration file using an explicit format and the default Config type.
+///
+/// ```no_run
+/// use feuilletage::{edit_file_with_format, Format};
+///
+/// edit_file_with_format("config.data", Format::Json, |config| {
+///     config.at("enabled").set(true).is_ok()
+/// })
+/// .unwrap();
+/// ```
 #[cfg(feature = "std")]
 pub fn edit_file_with_format<P, F>(path: P, format: Format, edit_fn: F) -> io::Result<bool>
 where
@@ -1809,6 +1961,17 @@ where
 /// directly: `Config::<MySource, MyLevel>::edit_first_existing(...)`.
 ///
 /// See [`Config::edit_first_existing`] for full documentation.
+///
+/// ```no_run
+/// use feuilletage::edit_first_existing;
+///
+/// let paths = ["config.yaml", ".config.yaml"];
+/// let edited = edit_first_existing(&paths, |config| {
+///     config.at("enabled").set(true).is_ok()
+/// })
+/// .unwrap();
+/// println!("Edited: {edited:?}");
+/// ```
 #[cfg(feature = "std")]
 pub fn edit_first_existing<P, F>(paths: &[P], edit_fn: F) -> io::Result<Option<PathBuf>>
 where
@@ -1825,6 +1988,17 @@ where
 /// directly: `Config::<MySource, MyLevel>::edit_first_writeable(...)`.
 ///
 /// See [`Config::edit_first_writeable`] for full documentation.
+///
+/// ```no_run
+/// use feuilletage::edit_first_writeable;
+///
+/// let paths = ["/etc/myapp/config.yaml", "config.yaml"];
+/// let edited = edit_first_writeable(&paths, |config| {
+///     config.at("enabled").set(true).is_ok()
+/// })
+/// .unwrap();
+/// println!("Edited: {edited:?}");
+/// ```
 #[cfg(feature = "std")]
 pub fn edit_first_writeable<P, F>(candidates: &[P], edit_fn: F) -> io::Result<Option<PathBuf>>
 where
