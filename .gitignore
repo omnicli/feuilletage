@@ -1,18 +1,22 @@
-# Rust
+# Rust build artifacts
 /target/
 **/*.rs.bk
 *.pdb
 
-# IDE
+# Generated dependency locks
+# This standalone fixture follows the workspace crate versions during release PRs.
+/feuilletage/tests/no_std_consumer/Cargo.lock
+
+# Editor and IDE files
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
 
-# OS
+# Operating system files
 .DS_Store
 Thumbs.db
 
-# Git worktrees
+# Local Git worktrees
 .worktrees/

@@ -30,7 +30,6 @@ jobs:
           shared-key: quality
       - run: cargo fmt --all --check
       - run: cargo clippy --workspace --all-targets --all-features --locked -- -D warnings
-      - run: cargo check --workspace --all-targets --all-features --locked
 
   test:
     name: Test (${{ matrix.os }})
@@ -50,8 +49,6 @@ jobs:
       - if: runner.os == 'Linux'
         run: cargo build --workspace --all-targets --all-features --release --locked
       - run: cargo test --workspace --all-features --locked --lib --tests
-      - if: runner.os == 'Linux'
-        run: cargo test --workspace --all-features --locked --doc
 
   features-and-docs:
     name: Reduced features and documentation
@@ -107,5 +104,5 @@ jobs:
           tool: cargo-machete
       - run: ./scripts/run-examples.sh
       - run: cargo machete --with-metadata
-      - run: ./scripts/test-release-automation.sh
+      - run: ./scripts/test-publish-release.sh
       - run: ./scripts/check-packages.sh

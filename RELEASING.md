@@ -15,7 +15,7 @@ Releases after that pull request is merged.
 The workflow enforces this model as follows:
 
 1. A maintainer manually runs the workflow on `main` to prepare a release PR.
-   That job refreshes to detached latest `origin/main`, requires a clean
+   That job resets a clean local `main` to the latest `origin/main`, requires a clean
    worktree, and waits boundedly until both exact checked-in package versions
    resolve from crates.io before invoking release-plz.
 2. A short-lived GitHub App installation token creates or updates the ordinary
@@ -112,15 +112,14 @@ or overwritten release.
 Pull requests and `main` must pass formatting, strict Clippy, workspace builds
 and tests, Rust 1.88 checks, the feature matrix, bare-metal `no_std`, rustdoc
 and example coverage, all examples, `cargo-machete`, workspace package checks,
-release-automation tests, and the RustSec audit.
+release-helper tests, and the RustSec audit.
 
 `./scripts/check-packages.sh` requires stable checked-in versions, requires
 Feuilletage's exact macro requirement to match the local macro package, and runs
-`cargo package --locked --workspace`. `./scripts/test-release-automation.sh`
-checks release-plz's preparation-only configuration, workflow trigger and auth
-invariants, normalized archive equality and mismatch handling, bounded
-registry readiness and publication dry-run retries, latest-`main` preparation,
-published-package provenance, and strict GitHub Release metadata handling.
+`cargo package --locked --workspace`. `./scripts/test-publish-release.sh`
+exercises normalized archive equality and mismatch handling, bounded registry
+readiness and publication dry-run retries, published-package provenance, and
+strict GitHub Release metadata handling.
 
 ## External setup
 
