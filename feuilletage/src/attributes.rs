@@ -754,13 +754,16 @@
 //! ).unwrap();
 //! assert_eq!(wrapped.0, "demo!");
 //! assert_eq!(<Package as feuilletage::AllowMapKeys>::map_key_fields(), ["name"]);
-//! let source = ContextValue::object(
-//!     feuilletage::OrderedMap::from([
-//!         ("name".into(), ContextValue::string("demo", Context::default())),
-//!         ("version".into(), ContextValue::string("1.0", Context::default())),
-//!     ]),
-//!     Context::default(),
+//! let mut fields = feuilletage::OrderedMap::default();
+//! fields.insert(
+//!     "name".into(),
+//!     ContextValue::string("demo", Context::default()),
 //! );
+//! fields.insert(
+//!     "version".into(),
+//!     ContextValue::string("1.0", Context::default()),
+//! );
+//! let source = ContextValue::object(fields, Context::default());
 //! let label = <PackageLabel as feuilletage::FromContextValue>::from_context_value(
 //!     &source,
 //!     &mut ErrorTracker::new(),
@@ -811,13 +814,16 @@
 //! let endpoint = Endpoint::from_context_value(&scalar, &mut ErrorTracker::new()).unwrap();
 //! assert_eq!(endpoint.url, "https://example.com");
 //!
-//! let object: ContextValue = ContextValue::object(
-//!     OrderedMap::from([
-//!         ("host".into(), ContextValue::string("localhost", Context::default())),
-//!         ("port".into(), ContextValue::int(8080, Context::default())),
-//!     ]),
-//!     Context::default(),
+//! let mut fields = OrderedMap::default();
+//! fields.insert(
+//!     "host".into(),
+//!     ContextValue::string("localhost", Context::default()),
 //! );
+//! fields.insert(
+//!     "port".into(),
+//!     ContextValue::int(8080, Context::default()),
+//! );
+//! let object: ContextValue = ContextValue::object(fields, Context::default());
 //! let endpoint = Endpoint::from_context_value(&object, &mut ErrorTracker::new()).unwrap();
 //! assert_eq!(endpoint.url, "http://localhost:8080");
 //! ```

@@ -6,6 +6,7 @@
 
 use feuilletage::{Config, Context, Level, Source};
 use feuilletage_macros::Config as DeriveConfig;
+use std::path::PathBuf;
 
 /// Core acceptance test: `/foo/../bar/./baz` should normalize to `/bar/baz`.
 #[test]
@@ -24,7 +25,8 @@ fn test_normalize_path_resolves_dot_and_dotdot() {
     let result: PathConfig = config.deserialize().expect("Should succeed");
 
     assert_eq!(
-        result.data_dir, "/bar/baz",
+        PathBuf::from(result.data_dir),
+        PathBuf::from("/bar/baz"),
         "normalize_path should resolve `.` and `..` components"
     );
 }
@@ -45,7 +47,10 @@ fn test_normalize_path_already_normalized_unchanged() {
 
     let result: PathConfig = config.deserialize().expect("Should succeed");
 
-    assert_eq!(result.data_dir, "/already/normal/path");
+    assert_eq!(
+        PathBuf::from(result.data_dir),
+        PathBuf::from("/already/normal/path")
+    );
 }
 
 /// Relative paths should be normalized but stay relative
@@ -66,7 +71,8 @@ fn test_normalize_path_keeps_relative_paths_relative() {
     let result: PathConfig = config.deserialize().expect("Should succeed");
 
     assert_eq!(
-        result.data_dir, "foo/baz",
+        PathBuf::from(result.data_dir),
+        PathBuf::from("foo/baz"),
         "normalize_path should not promote relative paths to absolute"
     );
 }
@@ -85,7 +91,10 @@ fn test_normalize_path_with_option() {
     let mut config = Config::default();
     config.load_json(config_str, Context::new(Source::Programmatic, Level::User));
     let result: PathConfig = config.deserialize().expect("Should succeed");
-    assert_eq!(result.maybe_path.as_deref(), Some("/a/c"));
+    assert_eq!(
+        result.maybe_path.map(PathBuf::from),
+        Some(PathBuf::from("/a/c"))
+    );
 
     // Absent case
     let config_str = r#"{}"#;
@@ -112,7 +121,7 @@ fn test_normalize_path_from_yaml_file() {
     let mut loader = feuilletage::loader().load_file(&config_path, Level::User);
     let result: PathConfig = loader.deserialize().expect("Should succeed");
 
-    assert_eq!(result.path, "/bar/baz");
+    assert_eq!(PathBuf::from(result.path), PathBuf::from("/bar/baz"));
 
     let _ = std::fs::remove_file(&config_path);
 }
