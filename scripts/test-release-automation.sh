@@ -227,7 +227,12 @@ grep -Fq 'concurrency:' <<< "$release_pr_job"
 grep -Fq 'group: release-plz-main' "$workflow"
 grep -Fq 'cancel-in-progress: true' "$workflow"
 grep -Fq 'git fetch --force --prune origin +refs/heads/main:refs/remotes/origin/main' "$workflow"
-grep -Fq 'git checkout --detach refs/remotes/origin/main' "$workflow"
+grep -Fq 'git checkout --force -B main refs/remotes/origin/main' "$workflow"
+grep -Fq 'git branch --set-upstream-to=origin/main main' "$workflow"
+if grep -Fq 'git checkout --detach' <<< "$release_pr_job"; then
+  echo "error: release-plz requires a branch checkout with an upstream" >&2
+  exit 1
+fi
 # This is a literal workflow command, not a shell expansion.
 # shellcheck disable=SC2016
 grep -Fq 'test -z "$(git status --porcelain)"' "$workflow"
