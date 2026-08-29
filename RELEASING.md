@@ -183,10 +183,11 @@ installed on `omnicli/feuilletage` with these repository permissions:
 - Pull requests: read and write
 - Metadata: read
 
-Add its numeric App ID as the repository secret `OMNICLI_APP_ID`, its bot login
-(for example, `feuilletage-release[bot]`) as the repository variable
-`RELEASE_PR_APP_LOGIN`, and its private key as the repository secret
-`OMNICLI_PRIVATE_KEY`. The workflow uses the SHA-pinned
+Add its numeric App ID as the repository secret `OMNICLI_APP_ID`, its name as
+the repository variable `OMNICLI_APP_NAME`, and its private key as the
+repository secret `OMNICLI_PRIVATE_KEY`. The name may be either the App slug
+(for example, `omnicli`) or its exact bot login (`omnicli[bot]`); the workflow
+adds the `[bot]` suffix when needed. The workflow uses the SHA-pinned
 `actions/create-github-app-token` action to mint a short-lived installation
 token with explicit Contents and Pull requests write permissions. Release PR
 preparation and authorization fail clearly when a setting is absent; they do

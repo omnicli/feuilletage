@@ -29,12 +29,16 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           REPOSITORY: ${{ github.repository }}
-          APP_LOGIN: ${{ vars.RELEASE_PR_APP_LOGIN }}
+          APP_NAME: ${{ vars.OMNICLI_APP_NAME }}
           SHA: ${{ github.sha }}
         run: |
-          if [[ -z "$APP_LOGIN" ]]; then
-            echo "error: configure RELEASE_PR_APP_LOGIN as documented in RELEASING.md" >&2
+          if [[ -z "$APP_NAME" ]]; then
+            echo "error: configure OMNICLI_APP_NAME as documented in RELEASING.md" >&2
             exit 1
+          fi
+          app_login="$APP_NAME"
+          if [[ "$app_login" != *'[bot]' ]]; then
+            app_login="${app_login}[bot]"
           fi
           pull_requests=$(curl --fail-with-body --silent --show-error \
             --header "Accept: application/vnd.github+json" \
@@ -42,7 +46,7 @@ jobs:
             --header "X-GitHub-Api-Version: 2022-11-28" \
             "https://api.github.com/repos/$REPOSITORY/commits/$SHA/pulls")
           merged_release_pr=$(jq -r \
-            --arg sha "$SHA" --arg repository "$REPOSITORY" --arg app_login "$APP_LOGIN" '
+            --arg sha "$SHA" --arg repository "$REPOSITORY" --arg app_login "$app_login" '
             any(.[];
               .base.ref == "main"
               and (.head.ref | startswith("release-plz-"))
@@ -98,11 +102,11 @@ jobs:
       - name: Require release PR GitHub App configuration
         env:
           APP_ID: ${{ secrets.OMNICLI_APP_ID }}
-          APP_LOGIN: ${{ vars.RELEASE_PR_APP_LOGIN }}
+          APP_NAME: ${{ vars.OMNICLI_APP_NAME }}
           APP_PRIVATE_KEY: ${{ secrets.OMNICLI_PRIVATE_KEY }}
         run: |
-          if [[ -z "$APP_ID" || -z "$APP_LOGIN" || -z "$APP_PRIVATE_KEY" ]]; then
-            echo "error: configure OMNICLI_APP_ID, RELEASE_PR_APP_LOGIN, and OMNICLI_PRIVATE_KEY as documented in RELEASING.md" >&2
+          if [[ -z "$APP_ID" || -z "$APP_NAME" || -z "$APP_PRIVATE_KEY" ]]; then
+            echo "error: configure OMNICLI_APP_ID, OMNICLI_APP_NAME, and OMNICLI_PRIVATE_KEY as documented in RELEASING.md" >&2
             exit 1
           fi
 

@@ -172,7 +172,9 @@ grep -Fq '.head.repo.full_name == $repository' "$workflow"
 # shellcheck disable=SC2016
 grep -Fq '.user.login == $app_login' "$workflow"
 # shellcheck disable=SC2016
-grep -Fq 'APP_LOGIN: ${{ vars.RELEASE_PR_APP_LOGIN }}' "$workflow"
+grep -Fq 'APP_NAME: ${{ vars.OMNICLI_APP_NAME }}' "$workflow"
+grep -Fq "if [[ \"\$app_login\" != *'[bot]' ]]" "$workflow"
+grep -Fq 'app_login="${app_login}[bot]"' "$workflow"
 # shellcheck disable=SC2016
 grep -Fq 'APP_ID: ${{ secrets.OMNICLI_APP_ID }}' "$workflow"
 # shellcheck disable=SC2016
