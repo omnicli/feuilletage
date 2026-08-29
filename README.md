@@ -288,6 +288,41 @@ struct HomebrewConfig {
 }
 ```
 
+### Typed projections
+
+Parse a reusable wire type, then project it into a different target type while
+retaining access to the untouched input and its path-aware error tracker:
+
+```rust
+use feuilletage::{ContextValue, CustomLevel, CustomSource, Error, ErrorTracker, FromParsed};
+
+#[derive(feuilletage::Config)]
+struct ServerWire {
+    host: String,
+    port: u16,
+}
+
+#[derive(feuilletage::Config)]
+#[feuilletage(parse_as = "ServerWire")]
+struct Endpoint {
+    url: String,
+}
+
+impl<S: CustomSource, L: CustomLevel> FromParsed<ServerWire, S, L> for Endpoint {
+    fn from_parsed(
+        parsed: ServerWire,
+        _original: &ContextValue<S, L>,
+        _tracker: &mut ErrorTracker,
+    ) -> Result<Self, Error> {
+        Ok(Self { url: format!("http://{}:{}", parsed.host, parsed.port) })
+    }
+}
+```
+
+The wire type's `FromContextValue` implementation controls input parsing,
+including its transforms and `scalar_as` / `array_as` behavior. Serialization
+continues to use the target type's generated representation.
+
 ### Enums
 
 Internally tagged:

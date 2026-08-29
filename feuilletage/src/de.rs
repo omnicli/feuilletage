@@ -212,6 +212,72 @@ pub trait FromContextValue<S: SourceType = Source, L: LevelType = Level>: Sized 
     ) -> Result<Self, Error>;
 }
 
+/// Constructs a configuration type from an intermediate parsed representation.
+///
+/// Implement this trait on a target that uses
+/// `#[feuilletage(parse_as = "WireType")]`. The generated
+/// [`FromContextValue`] implementation first parses `Parsed`, then passes the
+/// result here together with the original, untouched input value and the same
+/// error tracker.
+///
+/// `S` and `L` are explicit trait parameters so implementations can support
+/// custom source and level types without using `impl Trait` in method
+/// signatures.
+///
+/// # Example
+///
+/// ```
+/// # #[cfg(feature = "json")] {
+/// use feuilletage::{Config, ContextValue, Error, ErrorTracker, FromParsed};
+/// use feuilletage::context::{LevelType, SourceType};
+///
+/// #[derive(feuilletage::Config)]
+/// struct WireConfig {
+///     name: String,
+/// }
+///
+/// #[derive(feuilletage::Config)]
+/// #[feuilletage(parse_as = "WireConfig")]
+/// struct AppConfig {
+///     display_name: String,
+/// }
+///
+/// impl<S: SourceType, L: LevelType> FromParsed<WireConfig, S, L> for AppConfig {
+///     fn from_parsed(
+///         parsed: WireConfig,
+///         _original: &ContextValue<S, L>,
+///         _tracker: &mut ErrorTracker,
+///     ) -> Result<Self, Error> {
+///         Ok(Self {
+///             display_name: parsed.name.to_uppercase(),
+///         })
+///     }
+/// }
+///
+/// let mut config = Config::default();
+/// config.load_json(
+///     r#"{"name": "feuilletage"}"#,
+///     feuilletage::Context::new(feuilletage::Source::Programmatic, feuilletage::Level::User),
+/// );
+/// let app: AppConfig = config.deserialize().unwrap();
+/// assert_eq!(app.display_name, "FEUILLETAGE");
+/// # }
+/// ```
+pub trait FromParsed<Parsed, S: SourceType = Source, L: LevelType = Level>: Sized {
+    /// Projects `parsed` into the target configuration type.
+    ///
+    /// `original` is the value supplied to the target's
+    /// [`FromContextValue`] implementation, before any transforms or
+    /// `scalar_as` / `array_as` handling performed while parsing `Parsed`.
+    /// `tracker` is the same tracker used to parse `Parsed`, with its current
+    /// path preserved.
+    fn from_parsed(
+        parsed: Parsed,
+        original: &ContextValue<S, L>,
+        tracker: &mut ErrorTracker,
+    ) -> Result<Self, Error>;
+}
+
 /// Trait for types that expose their map key field names for detection.
 ///
 /// This trait is automatically implemented for types that use `#[feuilletage(allow_map(key = field))]`
@@ -268,6 +334,12 @@ impl<S: SourceType, L: LevelType> FromContextValue<S, L> for Value {
         _tracker: &mut ErrorTracker,
     ) -> Result<Self, Error> {
         Ok(Value::from(value))
+    }
+}
+
+impl MutabilityInfo for Value {
+    fn mutability_constraints() -> crate::merge::MutabilityConstraints {
+        crate::merge::MutabilityConstraints::default()
     }
 }
 

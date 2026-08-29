@@ -690,12 +690,19 @@
 //! ## Container Attributes
 //!
 //! Containers support raw `transform`, `allow_map`, `transparent`,
-//! `post_process`, `skip_serialize`, and `skip_deserialize`. The two skip
-//! attributes suppress only the named generated serde implementation; the
-//! core `FromContextValue` implementation remains available.
+//! `post_process`, `parse_as`, `skip_serialize`, and `skip_deserialize`. The
+//! two skip attributes suppress only the named generated serde implementation;
+//! the core `FromContextValue` implementation remains available.
+//!
+//! `parse_as = "WireType"` replaces the target's normal deserialization path.
+//! Feuilletage parses `WireType` through its `FromContextValue`
+//! implementation, then calls `FromParsed<WireType, S, L>` on the target. The
+//! projection receives the parsed wire value, the untouched original
+//! `ContextValue`, and the same path-aware `ErrorTracker`. Serialization is
+//! still generated from the target type and is independent of the wire type.
 //!
 //! ```
-//! use feuilletage::{Context, ContextValue, CustomLevel, CustomSource, Error, ErrorTracker};
+//! use feuilletage::{Context, ContextValue, CustomLevel, CustomSource, Error, ErrorTracker, FromParsed};
 //!
 //! fn finish<S: CustomSource, L: CustomLevel>(
 //!     value: &mut Wrapped,
@@ -717,6 +724,28 @@
 //!     version: String,
 //! }
 //!
+//! #[derive(Debug, feuilletage::Config)]
+//! struct PackageWire {
+//!     name: String,
+//!     version: String,
+//! }
+//!
+//! #[derive(Debug, feuilletage::Config)]
+//! #[feuilletage(parse_as = "PackageWire")]
+//! struct PackageLabel {
+//!     label: String,
+//! }
+//!
+//! impl<S: CustomSource, L: CustomLevel> FromParsed<PackageWire, S, L> for PackageLabel {
+//!     fn from_parsed(
+//!         parsed: PackageWire,
+//!         _original: &ContextValue<S, L>,
+//!         _tracker: &mut ErrorTracker,
+//!     ) -> Result<Self, Error> {
+//!         Ok(Self { label: format!("{}@{}", parsed.name, parsed.version) })
+//!     }
+//! }
+//!
 //! let source = ContextValue::string(" demo ", Context::default());
 //! let mut tracker = ErrorTracker::new();
 //! let wrapped = <Wrapped as feuilletage::FromContextValue>::from_context_value(
@@ -725,6 +754,78 @@
 //! ).unwrap();
 //! assert_eq!(wrapped.0, "demo!");
 //! assert_eq!(<Package as feuilletage::AllowMapKeys>::map_key_fields(), ["name"]);
+//! let mut fields = feuilletage::OrderedMap::default();
+//! fields.insert(
+//!     "name".into(),
+//!     ContextValue::string("demo", Context::default()),
+//! );
+//! fields.insert(
+//!     "version".into(),
+//!     ContextValue::string("1.0", Context::default()),
+//! );
+//! let source = ContextValue::object(fields, Context::default());
+//! let label = <PackageLabel as feuilletage::FromContextValue>::from_context_value(
+//!     &source,
+//!     &mut ErrorTracker::new(),
+//! ).unwrap();
+//! assert_eq!(label.label, "demo@1.0");
+//! ```
+//!
+//! A projection can accept multiple input shapes by using an untagged enum as
+//! its wire type. Variants are attempted in declaration order.
+//!
+//! ```
+//! use feuilletage::{
+//!     Context, ContextValue, CustomLevel, CustomSource, Error, ErrorTracker,
+//!     FromContextValue, FromParsed, OrderedMap,
+//! };
+//!
+//! #[derive(Debug, feuilletage::Config)]
+//! #[feuilletage(untagged)]
+//! enum EndpointWire {
+//!     Url(String),
+//!     Parts { host: String, port: u16 },
+//! }
+//!
+//! #[derive(Debug, feuilletage::Config, PartialEq)]
+//! #[feuilletage(parse_as = "EndpointWire")]
+//! struct Endpoint {
+//!     url: String,
+//! }
+//!
+//! impl<S: CustomSource, L: CustomLevel> FromParsed<EndpointWire, S, L> for Endpoint {
+//!     fn from_parsed(
+//!         parsed: EndpointWire,
+//!         _original: &ContextValue<S, L>,
+//!         _tracker: &mut ErrorTracker,
+//!     ) -> Result<Self, Error> {
+//!         let url = match parsed {
+//!             EndpointWire::Url(url) => url,
+//!             EndpointWire::Parts { host, port } => format!("http://{host}:{port}"),
+//!         };
+//!         Ok(Self { url })
+//!     }
+//! }
+//!
+//! let scalar: ContextValue = ContextValue::string(
+//!     "https://example.com",
+//!     Context::default(),
+//! );
+//! let endpoint = Endpoint::from_context_value(&scalar, &mut ErrorTracker::new()).unwrap();
+//! assert_eq!(endpoint.url, "https://example.com");
+//!
+//! let mut fields = OrderedMap::default();
+//! fields.insert(
+//!     "host".into(),
+//!     ContextValue::string("localhost", Context::default()),
+//! );
+//! fields.insert(
+//!     "port".into(),
+//!     ContextValue::int(8080, Context::default()),
+//! );
+//! let object: ContextValue = ContextValue::object(fields, Context::default());
+//! let endpoint = Endpoint::from_context_value(&object, &mut ErrorTracker::new()).unwrap();
+//! assert_eq!(endpoint.url, "http://localhost:8080");
 //! ```
 //!
 //! ## Enum and Variant Attributes
@@ -844,5 +945,58 @@
 //! enum InvalidVariant {
 //!     #[feuilletage(unknown_variant)]
 //!     Value,
+//! }
+//! ```
+//!
+//! Projection targets cannot declare mutability constraints because parsing
+//! and mutability enforcement belong to the wire type.
+//!
+//! ```compile_fail
+//! #[derive(feuilletage::Config)]
+//! struct Wire { value: String }
+//!
+//! #[derive(feuilletage::Config)]
+//! #[feuilletage(
+//!     parse_as = "Wire",
+//!     mutable_by = ["user"],
+//!     skip_serialize,
+//!     skip_deserialize
+//! )]
+//! struct InvalidProjection { value: String }
+//!
+//! impl<S: feuilletage::CustomSource, L: feuilletage::CustomLevel>
+//!     feuilletage::FromParsed<Wire, S, L> for InvalidProjection
+//! {
+//!     fn from_parsed(
+//!         parsed: Wire,
+//!         _original: &feuilletage::ContextValue<S, L>,
+//!         _tracker: &mut feuilletage::ErrorTracker,
+//!     ) -> Result<Self, feuilletage::Error> {
+//!         Ok(Self { value: parsed.value })
+//!     }
+//! }
+//! ```
+//!
+//! ```compile_fail
+//! #[derive(feuilletage::Config)]
+//! struct Wire { value: String }
+//!
+//! #[derive(feuilletage::Config)]
+//! #[feuilletage(parse_as = "Wire", skip_serialize, skip_deserialize)]
+//! struct InvalidProjection {
+//!     #[feuilletage(mutable_by = ["user"])]
+//!     value: String,
+//! }
+//!
+//! impl<S: feuilletage::CustomSource, L: feuilletage::CustomLevel>
+//!     feuilletage::FromParsed<Wire, S, L> for InvalidProjection
+//! {
+//!     fn from_parsed(
+//!         parsed: Wire,
+//!         _original: &feuilletage::ContextValue<S, L>,
+//!         _tracker: &mut feuilletage::ErrorTracker,
+//!     ) -> Result<Self, feuilletage::Error> {
+//!         Ok(Self { value: parsed.value })
+//!     }
 //! }
 //! ```

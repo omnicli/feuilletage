@@ -63,7 +63,8 @@ fn test_relative_path_leaves_absolute_unchanged() {
 
     let temp_dir = std::env::temp_dir();
     let config_path = temp_dir.join("test_absolute.yaml");
-    let config_content = r#"config_path: "/absolute/path/to/file""#;
+    let absolute_path = temp_dir.join("absolute/path/to/file");
+    let config_content = format!("config_path: '{}'", absolute_path.display());
 
     std::fs::write(&config_path, config_content).expect("Failed to write temp config");
 
@@ -73,7 +74,8 @@ fn test_relative_path_leaves_absolute_unchanged() {
 
     // Absolute path should remain unchanged
     assert_eq!(
-        result.config_path, "/absolute/path/to/file",
+        PathBuf::from(result.config_path),
+        absolute_path,
         "Absolute path should not be modified"
     );
 

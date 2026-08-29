@@ -27,6 +27,77 @@ use crate::helpers::{
     is_unsigned_int_type, parse_transform_path,
 };
 
+fn generate_projection_impl(
+    name: &syn::Ident,
+    parsed_type: &syn::Type,
+    extended_impl_generics: syn::ImplGenerics,
+    ty_generics: syn::TypeGenerics,
+    where_clause: Option<&syn::WhereClause>,
+) -> proc_macro2::TokenStream {
+    let projection_where_clause = if let Some(where_clause) = where_clause {
+        let predicates = &where_clause.predicates;
+        quote! {
+            where
+                #predicates,
+                #name #ty_generics: feuilletage::FromParsed<#parsed_type, __FeuilletageS, __FeuilletageL>
+        }
+    } else {
+        quote! {
+            where
+                #name #ty_generics: feuilletage::FromParsed<#parsed_type, __FeuilletageS, __FeuilletageL>
+        }
+    };
+
+    quote! {
+        impl #extended_impl_generics feuilletage::FromContextValue<__FeuilletageS, __FeuilletageL> for #name #ty_generics #projection_where_clause {
+            fn from_context_value(
+                value: &feuilletage::ContextValue<__FeuilletageS, __FeuilletageL>,
+                tracker: &mut feuilletage::ErrorTracker,
+            ) -> Result<Self, feuilletage::Error> {
+                let __feuilletage_parsed = <#parsed_type as feuilletage::FromContextValue<__FeuilletageS, __FeuilletageL>>::from_context_value(
+                    value,
+                    tracker,
+                )?;
+                <Self as feuilletage::FromParsed<#parsed_type, __FeuilletageS, __FeuilletageL>>::from_parsed(
+                    __feuilletage_parsed,
+                    value,
+                    tracker,
+                )
+            }
+        }
+    }
+}
+
+fn generate_projection_mutability_info_impl(
+    name: &syn::Ident,
+    parsed_type: &syn::Type,
+    impl_generics: syn::ImplGenerics,
+    ty_generics: syn::TypeGenerics,
+    where_clause: Option<&syn::WhereClause>,
+) -> proc_macro2::TokenStream {
+    let projection_where_clause = if let Some(where_clause) = where_clause {
+        let predicates = &where_clause.predicates;
+        quote! {
+            where
+                #predicates,
+                #parsed_type: feuilletage::MutabilityInfo
+        }
+    } else {
+        quote! {
+            where
+                #parsed_type: feuilletage::MutabilityInfo
+        }
+    };
+
+    quote! {
+        impl #impl_generics feuilletage::MutabilityInfo for #name #ty_generics #projection_where_clause {
+            fn mutability_constraints() -> feuilletage::MutabilityConstraints {
+                <#parsed_type as feuilletage::MutabilityInfo>::mutability_constraints()
+            }
+        }
+    }
+}
+
 /// Derive macro for configuration deserialization.
 ///
 /// The `Config` derive macro generates implementations of `FromContextValue`
@@ -269,6 +340,10 @@ use crate::helpers::{
 ///
 /// # Struct-Level Attributes
 ///
+/// - `#[feuilletage(parse_as = "WireType")]` - Parse `WireType` with its
+///   `FromContextValue` implementation, then construct the target through
+///   `FromParsed<WireType, S, L>`. The wire type owns deserialization and
+///   `mutable_by` constraints; projected targets cannot define `mutable_by`.
 /// - `#[feuilletage(scalar_as = "field")]` - Wrap scalar input as `{field: value}`
 /// - `#[feuilletage(array_as = "field")]` - Wrap array input as `{field: value}`
 /// - `#[feuilletage(transform = "fn_name")]` - Run a normalizer function on the raw
@@ -681,13 +756,23 @@ fn generate_struct_impl(
         };
 
     // Generate MutabilityInfo implementation
-    let mutability_info_impl = generate_mutability_info_impl(
-        &field_infos,
-        name,
-        impl_generics.clone(),
-        ty_generics.clone(),
-        where_clause,
-    );
+    let mutability_info_impl = if let Some(parsed_type) = &container_attrs.parse_as {
+        generate_projection_mutability_info_impl(
+            name,
+            parsed_type,
+            impl_generics.clone(),
+            ty_generics.clone(),
+            where_clause,
+        )
+    } else {
+        generate_mutability_info_impl(
+            &field_infos,
+            name,
+            impl_generics.clone(),
+            ty_generics.clone(),
+            where_clause,
+        )
+    };
 
     // Generate AllowMapKeys implementation if struct has allow_map(key = ...)
     let allow_map_keys_impl = generate_allow_map_keys_impl(
@@ -699,8 +784,17 @@ fn generate_struct_impl(
         where_clause,
     );
 
-    let expanded = quote! {
-        impl #extended_impl_generics feuilletage::FromContextValue<__FeuilletageS, __FeuilletageL> for #name #ty_generics #where_clause {
+    let from_context_value_impl = if let Some(parsed_type) = &container_attrs.parse_as {
+        generate_projection_impl(
+            name,
+            parsed_type,
+            extended_impl_generics,
+            ty_generics.clone(),
+            where_clause,
+        )
+    } else {
+        quote! {
+            impl #extended_impl_generics feuilletage::FromContextValue<__FeuilletageS, __FeuilletageL> for #name #ty_generics #where_clause {
             fn from_context_value(
                 value: &feuilletage::ContextValue<__FeuilletageS, __FeuilletageL>,
                 tracker: &mut feuilletage::ErrorTracker,
@@ -752,6 +846,11 @@ fn generate_struct_impl(
                 Ok(__result)
             }
         }
+        }
+    };
+
+    let expanded = quote! {
+        #from_context_value_impl
 
         #serialize_impl
 
@@ -913,8 +1012,17 @@ fn generate_transparent_struct_impl(
     let local_var_tokens = quote! { #local_var };
     let result_construct = construct(&local_var_tokens);
 
-    let expanded = quote! {
-        impl #extended_impl_generics feuilletage::FromContextValue<__FeuilletageS, __FeuilletageL> for #name #ty_generics #where_clause {
+    let from_context_value_impl = if let Some(parsed_type) = &container_attrs.parse_as {
+        generate_projection_impl(
+            name,
+            parsed_type,
+            extended_impl_generics,
+            ty_generics.clone(),
+            where_clause,
+        )
+    } else {
+        quote! {
+            impl #extended_impl_generics feuilletage::FromContextValue<__FeuilletageS, __FeuilletageL> for #name #ty_generics #where_clause {
             fn from_context_value(
                 value: &feuilletage::ContextValue<__FeuilletageS, __FeuilletageL>,
                 tracker: &mut feuilletage::ErrorTracker,
@@ -933,16 +1041,35 @@ fn generate_transparent_struct_impl(
                 Ok(__result)
             }
         }
+        }
+    };
+
+    let mutability_info_impl = if let Some(parsed_type) = &container_attrs.parse_as {
+        generate_projection_mutability_info_impl(
+            name,
+            parsed_type,
+            impl_generics.clone(),
+            ty_generics.clone(),
+            where_clause,
+        )
+    } else {
+        quote! {
+            impl #impl_generics feuilletage::MutabilityInfo for #name #ty_generics #where_clause {
+                fn mutability_constraints() -> feuilletage::MutabilityConstraints {
+                    feuilletage::MutabilityHashMap::default()
+                }
+            }
+        }
+    };
+
+    let expanded = quote! {
+        #from_context_value_impl
 
         #serialize_impl
 
         #deserialize_impl
 
-        impl #impl_generics feuilletage::MutabilityInfo for #name #ty_generics #where_clause {
-            fn mutability_constraints() -> feuilletage::MutabilityConstraints {
-                feuilletage::MutabilityHashMap::default()
-            }
-        }
+        #mutability_info_impl
     };
 
     TokenStream::from(expanded)

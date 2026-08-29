@@ -58,6 +58,7 @@ fn test_absolute_path_required_field_fails_on_validation_error() {
 
 /// Test absolute_path validation success with Unix path
 #[test]
+#[cfg(unix)]
 fn test_absolute_path_unix_succeeds() {
     #[derive(DeriveConfig, Debug)]
     struct AbsolutePathConfig {
