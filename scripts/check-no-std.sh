@@ -12,6 +12,6 @@ fi
 cargo check -p feuilletage --lib --no-default-features --locked --target "$target"
 cargo check \
   --manifest-path feuilletage/tests/no_std_consumer/Cargo.toml \
-  --locked \
+  --offline \
   --target "$target" \
   --target-dir target/no_std_consumer
