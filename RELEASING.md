@@ -178,7 +178,7 @@ For both crates, configure a crates.io Trusted Publisher with:
 Create and protect the `crates-io` GitHub environment, require the intended
 reviewers, and restrict deployment branches to `main`.
 
-### Release PR GitHub App
+### Release GitHub App
 
 Do not rely on a PR created with the workflow's `GITHUB_TOKEN`: GitHub suppresses
 new workflow runs for those token-generated events. Create or reuse a GitHub App
@@ -195,9 +195,10 @@ repository secret `OMNICLI_PRIVATE_KEY`. The name may be either the App slug
 case; the workflow normalizes the login and adds the `[bot]` suffix when needed.
 The workflow uses the SHA-pinned
 `actions/create-github-app-token` action to mint a short-lived installation
-token with explicit Contents and Pull requests write permissions. Release PR
-preparation and authorization fail clearly when a setting is absent; they do
-not fall back to `GITHUB_TOKEN` or a PAT.
+token with explicit Contents write permission for tags and GitHub Releases, and
+Pull requests write permission when preparing a release PR. Release PR
+preparation and publication reconciliation do not fall back to `GITHUB_TOKEN`
+or a PAT.
 
 Finally, make the normal CI, `no_std`, and security jobs required checks on
 `main`. Do not manually prepare or merge a release PR until the bootstrap and
