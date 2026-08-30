@@ -114,6 +114,30 @@ jobs:
           private-key: ${{ secrets.OMNICLI_PRIVATE_KEY }}
           permission-contents: write
 
+      - name: Report release publication token access
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+          EXPECTED_REPOSITORY: ${{ github.repository }}
+        run: |
+          echo "GitHub App slug: $APP_SLUG"
+          installation=$(gh api installation/repositories)
+          permissions=$(jq -c --arg repository "$EXPECTED_REPOSITORY" '
+            .repositories[]
+            | select(.full_name == $repository)
+            | .permissions
+          ' <<< "$installation")
+          [[ -n "$permissions" ]] || {
+            echo "error: App installation cannot access $EXPECTED_REPOSITORY" >&2
+            exit 1
+          }
+          echo "PASS repository access: $EXPECTED_REPOSITORY"
+          [[ $(jq -r '.push' <<< "$permissions") == true ]] || {
+            echo "error: App installation lacks Contents write access to $EXPECTED_REPOSITORY" >&2
+            exit 1
+          }
+          echo "PASS Contents write access: $EXPECTED_REPOSITORY"
+
       - name: Publish packages and reconcile release records
         env:
           CARGO_REGISTRY_TOKEN: ${{ steps.crates-auth.outputs.token }}
@@ -227,6 +251,30 @@ jobs:
           client-id: ${{ secrets.OMNICLI_APP_ID }}
           private-key: ${{ secrets.OMNICLI_PRIVATE_KEY }}
           permission-contents: write
+
+      - name: Report release publication token access
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+          APP_SLUG: ${{ steps.app-token.outputs.app-slug }}
+          EXPECTED_REPOSITORY: ${{ github.repository }}
+        run: |
+          echo "GitHub App slug: $APP_SLUG"
+          installation=$(gh api installation/repositories)
+          permissions=$(jq -c --arg repository "$EXPECTED_REPOSITORY" '
+            .repositories[]
+            | select(.full_name == $repository)
+            | .permissions
+          ' <<< "$installation")
+          [[ -n "$permissions" ]] || {
+            echo "error: App installation cannot access $EXPECTED_REPOSITORY" >&2
+            exit 1
+          }
+          echo "PASS repository access: $EXPECTED_REPOSITORY"
+          [[ $(jq -r '.push' <<< "$permissions") == true ]] || {
+            echo "error: App installation lacks Contents write access to $EXPECTED_REPOSITORY" >&2
+            exit 1
+          }
+          echo "PASS Contents write access: $EXPECTED_REPOSITORY"
 
       - name: Publish packages and reconcile release records
         env:

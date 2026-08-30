@@ -107,10 +107,10 @@ unset -f cargo
 # Invoked indirectly by remote_tag_commit.
 # shellcheck disable=SC2317
 gh() {
-  if [[ ${MOCK_GH_RESULT:-} == missing ]]; then
+  if [[ ${MOCK_GH_RESULT:-} == missing || ${MOCK_GH_RESULT:-} == tag_write && "$*" == *"git/ref/tags/"* ]]; then
     echo "gh: Not Found (HTTP 404)" >&2
   else
-    echo "gh: service unavailable (HTTP 503)" >&2
+    echo "gh: Resource not accessible by integration (HTTP 403)" >&2
   fi
   return 1
 }
@@ -123,6 +123,10 @@ fi
 MOCK_GH_RESULT=error
 expect_failure "could not query GitHub tag v1.2.3" \
   remote_tag_commit omnicli/feuilletage v1.2.3
+MOCK_GH_RESULT=tag_write
+expect_failure "failed to create annotated tag object v1.2.3" \
+  ensure_tag omnicli/feuilletage v1.2.3 "feuilletage v1.2.3" \
+  0123456789abcdef0123456789abcdef01234567
 unset -f gh
 
 echo "publish release helper tests passed"

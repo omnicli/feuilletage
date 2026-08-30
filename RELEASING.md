@@ -198,7 +198,9 @@ The workflow uses the SHA-pinned
 token with explicit Contents write permission for tags and GitHub Releases, and
 Pull requests write permission when preparing a release PR. Release PR
 preparation and publication reconciliation do not fall back to `GITHUB_TOKEN`
-or a PAT.
+or a PAT. Publication reports the public App slug and pass/fail repository
+access checks before using the token. Failed tag writes include GitHub API debug
+headers and the exact failing endpoint without exposing the token.
 
 Finally, make the normal CI, `no_std`, and security jobs required checks on
 `main`. Do not manually prepare or merge a release PR until the bootstrap and

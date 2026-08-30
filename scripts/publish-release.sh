@@ -214,10 +214,14 @@ ensure_tag() {
   payload=$(jq -n \
     --arg tag "$tag" --arg message "$title" --arg object "$commit" \
     '{tag: $tag, message: $message, object: $object, type: "commit"}')
-  tag_object=$(gh api --method POST "repos/$repository/git/tags" --input - <<< "$payload")
+  if ! tag_object=$(GH_DEBUG=api gh api --method POST \
+    "repos/$repository/git/tags" --input - <<< "$payload"); then
+    die "failed to create annotated tag object $tag"
+  fi
   payload=$(jq -n --arg ref "refs/tags/$tag" --arg sha "$(jq -r '.sha' <<< "$tag_object")" \
     '{ref: $ref, sha: $sha}')
-  if ! gh api --method POST "repos/$repository/git/refs" --input - <<< "$payload" >/dev/null; then
+  if ! GH_DEBUG=api gh api --method POST \
+    "repos/$repository/git/refs" --input - <<< "$payload" >/dev/null; then
     existing=$(remote_tag_commit "$repository" "$tag") || die "failed to create annotated tag $tag"
     [[ "$existing" == "$commit" ]] || die "tag $tag was concurrently created at $existing, not $commit"
   fi

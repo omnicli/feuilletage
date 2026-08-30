@@ -1,0 +1,149 @@
+name: Cargo maintenance
+
+# Libraries do not publish Cargo.lock, but keeping it current makes CI exercise
+# recent compatible transitive dependencies. Manifest bounds and the MSRV remain
+# maintainer-reviewed API policy; this workflow changes only the lockfile.
+on:
+  schedule:
+    - cron: "17 5 1 * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: cargo-maintenance
+  cancel-in-progress: true
+
+env:
+  CARGO_TERM_COLOR: always
+  PR_BRANCH: automation/cargo-lock
+
+jobs:
+  refresh-lockfile:
+    name: Refresh and verify Cargo.lock
+    if: github.repository == 'omnicli/feuilletage'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Create short-lived pull request token
+        id: app-token
+        uses: actions/create-github-app-token@bcd2ba49218906704ab6c1aa796996da409d3eb1 # v3.2.0
+        with:
+          client-id: ${{ secrets.OMNICLI_APP_ID }}
+          private-key: ${{ secrets.OMNICLI_PRIVATE_KEY }}
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Check out main
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          ref: main
+          fetch-depth: 0
+          token: ${{ steps.app-token.outputs.token }}
+
+      - name: Install MSRV toolchain
+        uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # 2026-08-05
+        with:
+          toolchain: 1.88.0
+
+      - name: Install nightly Rust toolchain
+        uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # 2026-08-05
+        with:
+          toolchain: nightly
+
+      - name: Install stable Rust toolchain
+        uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # 2026-08-05
+        with:
+          toolchain: stable
+
+      - name: Resolve current dependencies with the MSRV toolchain
+        run: cargo +1.88.0 update
+
+      - name: Check current resolution on stable
+        run: cargo +stable check --workspace --all-targets --all-features --locked
+
+      - name: Check current resolution on the MSRV
+        run: |
+          cargo +1.88.0 check -p feuilletage --lib --all-features --locked
+          cargo +1.88.0 check -p feuilletage-macros --all-features --locked
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@742a3317eac7bd62f91cd888b4eead5e784ba833 # v2
+        with:
+          tool: cargo-audit
+
+      - name: Audit current resolution
+        run: cargo audit
+
+      - name: Check direct minimum versions on the MSRV
+        run: |
+          cp Cargo.lock "$RUNNER_TEMP/Cargo.lock.current"
+          cargo +nightly update -Z direct-minimal-versions
+          cargo audit
+          cargo +1.88.0 check -p feuilletage --lib --all-features --locked
+          cargo +1.88.0 check -p feuilletage-macros --all-features --locked
+          cp "$RUNNER_TEMP/Cargo.lock.current" Cargo.lock
+
+      - name: Detect lockfile update
+        id: lockfile
+        run: |
+          if git diff --quiet -- Cargo.lock; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+            git diff --stat -- Cargo.lock
+          fi
+
+      - name: Create or update lockfile pull request
+        if: steps.lockfile.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git switch --create "$PR_BRANCH"
+          git add Cargo.lock
+          git commit -m "chore(deps): refresh Cargo.lock"
+
+          git fetch origin "$PR_BRANCH:refs/remotes/origin/$PR_BRANCH" || true
+          git push --force-with-lease="refs/heads/$PR_BRANCH" origin "HEAD:refs/heads/$PR_BRANCH"
+
+          pr_number=$(gh pr list \
+            --repo "$GITHUB_REPOSITORY" \
+            --head "$PR_BRANCH" \
+            --state open \
+            --json number \
+            --jq '.[0].number')
+
+          if [[ -z "$pr_number" ]]; then
+            gh pr create \
+              --repo "$GITHUB_REPOSITORY" \
+              --base main \
+              --head "$PR_BRANCH" \
+              --title "chore(deps): refresh Cargo.lock" \
+              --body "Refreshes the checked-in lockfile within existing manifest constraints. Stable, Rust 1.88, direct-minimum, and RustSec checks passed before this PR was opened."
+          else
+            gh pr edit "$pr_number" \
+              --repo "$GITHUB_REPOSITORY" \
+              --title "chore(deps): refresh Cargo.lock" \
+              --body "Refreshes the checked-in lockfile within existing manifest constraints. Stable, Rust 1.88, direct-minimum, and RustSec checks passed before this PR was updated."
+          fi
+
+      - name: Close obsolete lockfile pull request
+        if: steps.lockfile.outputs.changed == 'false'
+        env:
+          GH_TOKEN: ${{ steps.app-token.outputs.token }}
+        run: |
+          pr_number=$(gh pr list \
+            --repo "$GITHUB_REPOSITORY" \
+            --head "$PR_BRANCH" \
+            --state open \
+            --json number \
+            --jq '.[0].number')
+
+          if [[ -n "$pr_number" ]]; then
+            gh pr close "$pr_number" \
+              --repo "$GITHUB_REPOSITORY" \
+              --comment "Closing because the latest main branch produces no lockfile update." \
+              --delete-branch
+          fi
