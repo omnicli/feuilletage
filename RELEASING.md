@@ -7,10 +7,12 @@ Releases after that pull request is merged.
 
 ## Release model
 
-`.github/workflows/release.yml` has two explicitly separate entry points:
+`.github/workflows/release.yml` has three explicitly separate entry points:
 
 - a manual `workflow_dispatch` on `main` prepares or updates the release PR;
-- a push to `main` can only detect and publish an authorized merged release PR.
+- a push to `main` can only detect and publish an authorized merged release PR;
+- a manual dispatch with a release PR number recovers publication after a
+  missed or failed merge-push run.
 
 The workflow enforces this model as follows:
 
@@ -40,10 +42,13 @@ The workflow enforces this model as follows:
    `vX.Y.Z`. Existing releases must be non-draft, non-prerelease, have the exact
    title, and reference the verified tag at the release commit.
 
-A dispatch run cannot reach publication: the publish job is gated to a `push`
-event on `refs/heads/main` and requires exact merged-release-PR detection from
-that same push. Dispatch preparation is accepted only when the selected ref is
-`refs/heads/main`.
+An ordinary dispatch cannot reach publication: leaving `release_pr` blank can
+only prepare a release PR. Recovery requires an explicit PR number and rechecks
+the same base branch, release branch, source repository, App author, merged
+state, and merge-commit requirements. It then checks out that exact merge commit
+and proves it is an ancestor of current `main` before crates.io authentication
+or publication in the protected `crates-io` job. All dispatch modes are accepted
+only when the selected ref is `refs/heads/main`.
 
 release-plz has `publish = false`, `git_tag_enable = false`, and
 `git_release_enable = false`. Do not use `release-plz release` in this
@@ -101,11 +106,12 @@ immutable-version collision fails the run. Re-run the same workflow event; the
 normal provenance, archive-equivalence, and release-record checks then validate
 the published package before reconciliation.
 
-Retry a failed run with GitHub's **Re-run jobs** control. This preserves the
-original push event and release SHA. Do not use manual dispatch to retry
-publication: dispatch can only prepare a release PR. Published versions are
-immutable; a bad package requires a corrective version rather than a moved tag
-or overwritten release.
+Retry a failed run with GitHub's **Re-run jobs** control first. This preserves
+the original push event and release SHA. If the merge-push run cannot be
+recovered, manually dispatch the workflow from `main` and provide the merged
+release PR number in `release_pr`. Published versions are immutable; a bad
+package requires a corrective version rather than a moved tag or overwritten
+release.
 
 ## Continuous integration
 
@@ -185,8 +191,9 @@ installed on `omnicli/feuilletage` with these repository permissions:
 Add its numeric App ID as the repository secret `OMNICLI_APP_ID`, its name as
 the repository variable `OMNICLI_APP_NAME`, and its private key as the
 repository secret `OMNICLI_PRIVATE_KEY`. The name may be either the App slug
-(for example, `omnicli`) or its exact bot login (`omnicli[bot]`); the workflow
-adds the `[bot]` suffix when needed. The workflow uses the SHA-pinned
+(for example, `omnicli`) or its exact bot login (`omnicli[bot]`), in any letter
+case; the workflow normalizes the login and adds the `[bot]` suffix when needed.
+The workflow uses the SHA-pinned
 `actions/create-github-app-token` action to mint a short-lived installation
 token with explicit Contents and Pull requests write permissions. Release PR
 preparation and authorization fail clearly when a setting is absent; they do
