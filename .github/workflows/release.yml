@@ -1,5 +1,5 @@
 name: Release
-run-name: ${{ github.event_name == 'workflow_dispatch' && inputs.release_pr != '' && format('Recover Feuilletage release from PR #{0}', inputs.release_pr) || github.event_name == 'workflow_dispatch' && 'Prepare Feuilletage release PR' || 'Check main push for merged Feuilletage release PR' }}
+run-name: ${{ github.event_name == 'workflow_dispatch' && inputs.release_pr != '' && format('Recover Feuilletage release from PR {0}', inputs.release_pr) || github.event_name == 'workflow_dispatch' && 'Prepare Feuilletage release PR' || 'Check main push for merged Feuilletage release PR' }}
 
 on:
   push:
