@@ -47,8 +47,11 @@ only prepare a release PR. Recovery requires an explicit PR number and rechecks
 the same base branch, release branch, source repository, App author, merged
 state, and merge-commit requirements. It then checks out that exact merge commit
 and proves it is an ancestor of current `main` before crates.io authentication
-or publication in the protected `crates-io` job. All dispatch modes are accepted
-only when the selected ref is `refs/heads/main`.
+or publication in the protected `crates-io` job. Recovery keeps the current
+selected `main` checkout for all scripts, runs them against a separate clean
+checkout of the historical release commit, and proves that commit is an ancestor
+of current `main`. All dispatch modes are accepted only when the selected ref is
+`refs/heads/main`.
 
 release-plz has `publish = false`, `git_tag_enable = false`, and
 `git_release_enable = false`. Do not use `release-plz release` in this
@@ -186,6 +189,7 @@ installed on `omnicli/feuilletage` with these repository permissions:
 
 - Contents: read and write
 - Pull requests: read and write
+- Actions: read and write
 - Metadata: read
 
 Add its numeric App ID as the repository secret `OMNICLI_APP_ID`, its name as
@@ -195,12 +199,12 @@ repository secret `OMNICLI_PRIVATE_KEY`. The name may be either the App slug
 case; the workflow normalizes the login and adds the `[bot]` suffix when needed.
 The workflow uses the SHA-pinned
 `actions/create-github-app-token` action to mint a short-lived installation
-token with explicit Contents write permission for tags and GitHub Releases, and
-Pull requests write permission when preparing a release PR. Release PR
-preparation and publication reconciliation do not fall back to `GITHUB_TOKEN`
-or a PAT. Publication reports the public App slug and pass/fail repository
-access checks before using the token. Failed tag writes include GitHub API debug
-headers and the exact failing endpoint without exposing the token.
+token with explicit Contents write permission for tags and GitHub Releases,
+Actions write permission so tag pushes can trigger workflows, and Pull requests
+write permission when preparing a release PR. Release PR preparation and
+publication reconciliation do not fall back to `GITHUB_TOKEN` or a PAT. Failed
+tag writes include GitHub API debug headers and the exact failing endpoint
+without exposing the token.
 
 Finally, make the normal CI, `no_std`, and security jobs required checks on
 `main`. Do not manually prepare or merge a release PR until the bootstrap and
