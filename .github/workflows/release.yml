@@ -113,7 +113,7 @@ jobs:
           client-id: ${{ secrets.OMNICLI_APP_ID }}
           private-key: ${{ secrets.OMNICLI_PRIVATE_KEY }}
           permission-contents: write
-          permission-actions: write
+          permission-workflows: write
 
       - name: Publish packages and reconcile release records
         env:
@@ -236,7 +236,7 @@ jobs:
           client-id: ${{ secrets.OMNICLI_APP_ID }}
           private-key: ${{ secrets.OMNICLI_PRIVATE_KEY }}
           permission-contents: write
-          permission-actions: write
+          permission-workflows: write
 
       - name: Publish packages and reconcile release records
         env:

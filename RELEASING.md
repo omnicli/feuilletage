@@ -189,7 +189,7 @@ installed on `omnicli/feuilletage` with these repository permissions:
 
 - Contents: read and write
 - Pull requests: read and write
-- Actions: read and write
+- Workflows: read and write
 - Metadata: read
 
 Add its numeric App ID as the repository secret `OMNICLI_APP_ID`, its name as
@@ -200,7 +200,7 @@ case; the workflow normalizes the login and adds the `[bot]` suffix when needed.
 The workflow uses the SHA-pinned
 `actions/create-github-app-token` action to mint a short-lived installation
 token with explicit Contents write permission for tags and GitHub Releases,
-Actions write permission so tag pushes can trigger workflows, and Pull requests
+Workflows write permission so tag pushes can trigger workflows, and Pull requests
 write permission when preparing a release PR. Release PR preparation and
 publication reconciliation do not fall back to `GITHUB_TOKEN` or a PAT. Failed
 tag writes include GitHub API debug headers and the exact failing endpoint
