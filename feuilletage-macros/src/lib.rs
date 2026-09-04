@@ -24,8 +24,7 @@ use crate::gen_vec::generate_vec_deserialization;
 use crate::helpers::{
     convert_string_default, extract_map_value_type, get_inner_type, get_map_kind, get_type_name,
     is_bool_type, is_float_type, is_option_type, is_pathbuf_type, is_signed_int_type,
-    is_string_type, option_inner_type,
-    is_unsigned_int_type, parse_transform_path,
+    is_string_type, is_unsigned_int_type, option_inner_type, parse_transform_path,
 };
 
 fn generate_projection_impl(

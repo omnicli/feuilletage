@@ -32,8 +32,7 @@ pub(crate) fn should_serialize_single_as_value(attrs: &FieldConfigAttributes) ->
 }
 
 fn expand_home_serialized_value(info: &SerializeFieldInfo) -> Option<proc_macro2::TokenStream> {
-    let enabled = info.attrs.expand_home
-        || info.attrs.transform.as_deref() == Some("expand_home");
+    let enabled = info.attrs.expand_home || info.attrs.transform.as_deref() == Some("expand_home");
     if !enabled {
         return None;
     }
