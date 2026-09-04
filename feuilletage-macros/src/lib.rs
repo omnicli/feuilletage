@@ -197,6 +197,7 @@ fn generate_projection_mutability_info_impl(
 /// - `#[feuilletage(transform_each = "function_name")]` - Transform each item in Vec
 /// - `#[feuilletage(relative_path)]` - Shorthand for `transform = "relative_path"`
 /// - `#[feuilletage(normalize_path)]` - Shorthand for `transform = "normalize_path"` (resolves `.` and `..`)
+/// - `#[feuilletage(expand_home)]` - Shorthand for `transform = "expand_home"` (expands `~`)
 /// - `#[feuilletage(duration)]` - Parse duration strings to seconds (default)
 /// - `#[feuilletage(duration(ms))]` - Parse duration strings to specified unit (shorthand)
 /// - `#[feuilletage(duration(unit = ms))]` - Parse duration strings to specified unit (explicit)
@@ -3153,11 +3154,14 @@ fn generate_field_deserialization(
     // Handle transform shortcuts:
     // - relative_path flag -> transform = "relative_path"
     // - normalize_path flag -> transform = "normalize_path"
+    // - expand_home flag -> transform = "expand_home"
     // Note: duration is now handled separately with inline code generation
     let transform = if attrs.relative_path && attrs.transform.is_none() {
         Some("relative_path".to_string())
     } else if attrs.normalize_path && attrs.transform.is_none() {
         Some("normalize_path".to_string())
+    } else if attrs.expand_home && attrs.transform.is_none() {
+        Some("expand_home".to_string())
     } else {
         attrs.transform.clone()
     };

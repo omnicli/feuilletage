@@ -7,6 +7,7 @@
 //! # Built-in Transform Functions
 //!
 //! - [`crate::transform::expand_env_vars`]: Expand `${VAR}` environment variables in strings (std only)
+//! - [`crate::transform::expand_home`]: Expand a leading `~` to the home directory (std only)
 //! - [`crate::transform::to_uppercase`]: Convert strings to uppercase
 //! - [`crate::transform::to_lowercase`]: Convert strings to lowercase
 //! - [`crate::transform::trim`]: Remove leading/trailing whitespace
@@ -602,6 +603,37 @@ pub fn normalize_path<S: SourceType, L: LevelType>(
         };
 
         *s = normalized.to_string_lossy().to_string();
+    }
+
+    Ok(())
+}
+
+/// Expand a leading `~` to the current user's home directory.
+///
+/// This handles `~` and `~/...` without touching the filesystem. Other paths,
+/// including `~other-user/...`, are left unchanged.
+///
+/// Non-string values are left unchanged.
+#[cfg(feature = "std")]
+pub fn expand_home<S: SourceType, L: LevelType>(
+    value: &mut ContextValue<S, L>,
+    _context: &Context<S, L>,
+) -> Result<(), Error> {
+    if let ContextValue::String(ref mut s, _) = value {
+        let home = if cfg!(windows) {
+            std::env::var_os("USERPROFILE")
+        } else {
+            std::env::var_os("HOME")
+        };
+
+        if let Some(home) = home {
+            let home = home.to_string_lossy();
+            if *s == "~" {
+                *s = home.into_owned();
+            } else if let Some(suffix) = s.strip_prefix("~/") {
+                *s = format!("{home}/{suffix}");
+            }
+        }
     }
 
     Ok(())

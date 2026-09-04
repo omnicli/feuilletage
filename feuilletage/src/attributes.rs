@@ -581,6 +581,8 @@
 //!     relative: PathBuf,
 //!     #[feuilletage(default_fn = "normalized_path", normalize_path)]
 //!     normalized: PathBuf,
+//!     #[feuilletage(expand_home)]
+//!     home: String,
 //!     #[feuilletage(default, env = "FEUILLETAGE_DOCS_MISSING_ENV")]
 //!     env_value: String,
 //!     #[feuilletage(default, deprecated = "use name", secret)]
@@ -604,7 +606,7 @@
 //!
 //! let mut config = Config::default();
 //! config.load_yaml(
-//!     "old_name: demo\ntitle: ' hello '\ntags: [' one ', two]\nretries: 2\ntimeout: 2s\nmutable: editable\n",
+//!     "old_name: demo\ntitle: ' hello '\ntags: [' one ', two]\nretries: 2\ntimeout: 2s\nmutable: editable\nhome: ~/docs\n",
 //!     Context::new(Source::Programmatic, Level::User),
 //! );
 //! let value: FieldOptions = config.deserialize().unwrap();
@@ -614,6 +616,7 @@
 //! assert_eq!(value.retries, 4);
 //! assert_eq!(value.timeout, 2);
 //! assert_eq!(value.mutable, "editable");
+//! assert_eq!(value.home, format!("{}/docs", std::env::var("HOME").unwrap()));
 //! assert_eq!(value.scope, "user");
 //! assert_eq!(value.computed_scope, "user");
 //! assert_eq!(value.mirror, "stable");
