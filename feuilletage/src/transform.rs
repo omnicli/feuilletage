@@ -7,6 +7,7 @@
 //! # Built-in Transform Functions
 //!
 //! - [`crate::transform::expand_env_vars`]: Expand `${VAR}` environment variables in strings (std only)
+//! - [`crate::transform::expand_home`]: Expand a leading `~` to the home directory (std only)
 //! - [`crate::transform::to_uppercase`]: Convert strings to uppercase
 //! - [`crate::transform::to_lowercase`]: Convert strings to lowercase
 //! - [`crate::transform::trim`]: Remove leading/trailing whitespace
@@ -605,6 +606,108 @@ pub fn normalize_path<S: SourceType, L: LevelType>(
     }
 
     Ok(())
+}
+
+/// Expand a leading `~` to the current user's home directory.
+///
+/// This handles `~` and `~/...` without touching the filesystem. Other paths,
+/// including `~other-user/...`, are left unchanged.
+///
+/// Non-string values are left unchanged.
+///
+/// # Examples
+///
+/// ```
+/// use feuilletage::{Context, ContextValue, Level, Source};
+/// use feuilletage::transform::expand_home;
+///
+/// let ctx = Context::new(Source::Programmatic, Level::User);
+/// let mut value = ContextValue::string("~/config", ctx.clone());
+/// let home_var = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
+/// let home = std::env::var(home_var).unwrap();
+///
+/// expand_home(&mut value, &ctx).unwrap();
+///
+/// if let ContextValue::String(path, _) = value {
+///     assert_eq!(path, format!("{home}/config"));
+/// }
+/// ```
+#[cfg(feature = "std")]
+pub fn expand_home<S: SourceType, L: LevelType>(
+    value: &mut ContextValue<S, L>,
+    _context: &Context<S, L>,
+) -> Result<(), Error> {
+    if let ContextValue::String(ref mut s, _) = value {
+        let home = if cfg!(windows) {
+            std::env::var_os("USERPROFILE")
+        } else {
+            std::env::var_os("HOME")
+        };
+
+        if let Some(home) = home {
+            let home = home.to_string_lossy();
+            if *s == "~" {
+                *s = home.into_owned();
+            } else if let Some(suffix) = s.strip_prefix("~/") {
+                *s = format!("{home}/{suffix}");
+            }
+        }
+    }
+
+    Ok(())
+}
+
+/// Contract a string path under the current user's home directory to `~`.
+///
+/// # Examples
+///
+/// ```
+/// use feuilletage::transform::contract_home_str;
+///
+/// let home_var = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
+/// let home = std::env::var(home_var).unwrap();
+/// assert_eq!(contract_home_str(&format!("{home}/config")), "~/config");
+/// ```
+#[cfg(feature = "std")]
+pub fn contract_home_str(value: &str) -> String {
+    contract_home_path(std::path::Path::new(value))
+}
+
+/// Contract a path under the current user's home directory to `~`.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+/// use feuilletage::transform::contract_home_path;
+///
+/// let home_var = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
+/// let home = std::env::var(home_var).unwrap();
+/// assert_eq!(contract_home_path(Path::new(&format!("{home}/config"))), "~/config");
+/// ```
+#[cfg(feature = "std")]
+pub fn contract_home_path(value: &std::path::Path) -> String {
+    let home = if cfg!(windows) {
+        std::env::var_os("USERPROFILE")
+    } else {
+        std::env::var_os("HOME")
+    };
+
+    let Some(home) = home else {
+        return value.to_string_lossy().into_owned();
+    };
+
+    let home = std::path::Path::new(&home);
+    if value == home {
+        return "~".to_string();
+    }
+
+    if let Ok(relative) = value.strip_prefix(home) {
+        let relative = relative.to_string_lossy().replace('\\', "/");
+        return format!("~/{relative}");
+    }
+
+    value.to_string_lossy().into_owned()
 }
 
 // ============================================================================

@@ -785,6 +785,7 @@ pub(crate) struct FieldConfigAttributes {
     pub(crate) transform_each_after: Option<String>, // Transform each element in collections after deserialization
     pub(crate) relative_path: bool,
     pub(crate) normalize_path: bool,
+    pub(crate) expand_home: bool,
     pub(crate) coerce: bool, // Enable liberal type coercion
     // Error handling mode
     pub(crate) on_error: Option<OnErrorMode>, // How to handle errors: skip (graceful), default, fail
@@ -861,6 +862,10 @@ fn try_parse_field_config_attributes(
             }
             if meta.path.is_ident("normalize_path") {
                 config_attrs.normalize_path = true;
+                return Ok(());
+            }
+            if meta.path.is_ident("expand_home") {
+                config_attrs.expand_home = true;
                 return Ok(());
             }
             if meta.path.is_ident("flatten") {

@@ -79,6 +79,33 @@ pub(crate) fn is_string_type(ty: &Type) -> bool {
     false
 }
 
+/// Check if a type is PathBuf.
+pub(crate) fn is_pathbuf_type(ty: &Type) -> bool {
+    if let Type::Path(type_path) = ty {
+        if let Some(segment) = type_path.path.segments.last() {
+            return segment.ident == "PathBuf";
+        }
+    }
+    false
+}
+
+/// Return the inner type when a type is Option<T>.
+pub(crate) fn option_inner_type(ty: &Type) -> Option<&Type> {
+    if let Type::Path(type_path) = ty {
+        if let Some(segment) = type_path.path.segments.last() {
+            if segment.ident == "Option" {
+                if let syn::PathArguments::AngleBracketed(args) = &segment.arguments {
+                    return args.args.iter().find_map(|arg| match arg {
+                        syn::GenericArgument::Type(inner) => Some(inner),
+                        _ => None,
+                    });
+                }
+            }
+        }
+    }
+    None
+}
+
 /// Check if a type is a HashMap or BTreeMap. Returns the map kind ("HashMap" or "BTreeMap") if it is.
 pub(crate) fn get_map_kind(ty: &Type) -> Option<&'static str> {
     if let Type::Path(type_path) = ty {

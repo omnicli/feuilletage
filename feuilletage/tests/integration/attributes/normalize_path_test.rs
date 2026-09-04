@@ -125,3 +125,40 @@ fn test_normalize_path_from_yaml_file() {
 
     let _ = std::fs::remove_file(&config_path);
 }
+
+#[test]
+fn test_expand_home() {
+    #[derive(DeriveConfig, Debug)]
+    struct PathConfig {
+        #[feuilletage(expand_home)]
+        data_dir: String,
+    }
+
+    let home_var = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
+    let home = std::env::var(home_var).expect("home directory should be set for this test");
+    let mut config = Config::default();
+    config.load_json(
+        r#"{"data_dir": "~/foo"}"#,
+        Context::new(Source::Programmatic, Level::User),
+    );
+
+    let result: PathConfig = config.deserialize().expect("Should succeed");
+
+    assert_eq!(result.data_dir, format!("{home}/foo"));
+
+    let mut config = Config::default();
+    config.load_json(
+        r#"{"data_dir": "~"}"#,
+        Context::new(Source::Programmatic, Level::User),
+    );
+    let result: PathConfig = config.deserialize().expect("Should succeed");
+    assert_eq!(result.data_dir, home);
+
+    let mut config = Config::default();
+    config.load_json(
+        r#"{"data_dir": "~other/foo"}"#,
+        Context::new(Source::Programmatic, Level::User),
+    );
+    let result: PathConfig = config.deserialize().expect("Should succeed");
+    assert_eq!(result.data_dir, "~other/foo");
+}

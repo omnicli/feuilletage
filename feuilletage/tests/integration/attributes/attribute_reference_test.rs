@@ -21,6 +21,7 @@ fn parser_attribute_names(source: &str) -> BTreeSet<String> {
 
 fn executable_doctest_source(source: &str) -> String {
     let mut code = String::new();
+    let mut in_code = false;
     let mut executable = false;
 
     for line in source.lines() {
@@ -30,9 +31,11 @@ fn executable_doctest_source(source: &str) -> String {
         let Some(doc) = doc else { continue };
 
         if doc.starts_with("```") {
-            if executable {
+            if in_code {
+                in_code = false;
                 executable = false;
             } else {
+                in_code = true;
                 let language = doc.trim_start_matches('`').trim();
                 executable = language.is_empty() || language == "rust";
             }
