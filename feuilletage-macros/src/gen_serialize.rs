@@ -6,7 +6,10 @@ use quote::quote;
 use syn::Type;
 
 use crate::attrs::{parse_field_config_attributes, DefaultValue, FieldConfigAttributes};
-use crate::helpers::{get_inner_type, get_type_name, is_raw_string_default, is_string_type};
+use crate::helpers::{
+    get_inner_type, get_type_name, is_pathbuf_type, is_raw_string_default, is_string_type,
+    option_inner_type,
+};
 
 /// Information about a field for serialization
 pub(crate) struct SerializeFieldInfo {
@@ -26,6 +29,44 @@ pub(crate) fn should_serialize_single_as_value(attrs: &FieldConfigAttributes) ->
         // Auto-enable for allow_single fields in flag form (empty string = Vec wrapping)
         None => attrs.allow_single.as_ref().is_some_and(|s| s.is_empty()),
     }
+}
+
+fn expand_home_serialized_value(info: &SerializeFieldInfo) -> Option<proc_macro2::TokenStream> {
+    let enabled = info.attrs.expand_home
+        || info.attrs.transform.as_deref() == Some("expand_home");
+    if !enabled {
+        return None;
+    }
+
+    let field_name = &info.field_name;
+    if is_string_type(&info.field_type) {
+        return Some(quote! {
+            feuilletage::transform::contract_home_str(&self.#field_name)
+        });
+    }
+    if is_pathbuf_type(&info.field_type) {
+        return Some(quote! {
+            feuilletage::transform::contract_home_path(&self.#field_name)
+        });
+    }
+    if let Some(inner) = option_inner_type(&info.field_type) {
+        if is_string_type(inner) {
+            return Some(quote! {
+                self.#field_name
+                    .as_ref()
+                    .map(|value| feuilletage::transform::contract_home_str(value))
+            });
+        }
+        if is_pathbuf_type(inner) {
+            return Some(quote! {
+                self.#field_name
+                    .as_ref()
+                    .map(|value| feuilletage::transform::contract_home_path(value))
+            });
+        }
+    }
+
+    None
 }
 
 /// Generate Serialize implementation for a struct
@@ -251,6 +292,19 @@ pub(crate) fn generate_serialize_impl(
                     } else {
                         // Serialize as array for 2+ elements
                         __state.serialize_field(#serialized_key, &self.#field_name)?;
+                    }
+                }
+            }
+        } else if let Some(serialized_value) = expand_home_serialized_value(info) {
+            if condition.is_empty() {
+                quote! {
+                    __state.serialize_field(#serialized_key, &#serialized_value)?;
+                }
+            } else {
+                let skip_var = syn::Ident::new(&format!("__skip_{}", field_name), field_name.span());
+                quote! {
+                    if !#skip_var {
+                        __state.serialize_field(#serialized_key, &#serialized_value)?;
                     }
                 }
             }

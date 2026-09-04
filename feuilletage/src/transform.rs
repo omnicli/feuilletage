@@ -639,6 +639,38 @@ pub fn expand_home<S: SourceType, L: LevelType>(
     Ok(())
 }
 
+/// Contract a string path under the current user's home directory to `~`.
+#[cfg(feature = "std")]
+pub fn contract_home_str(value: &str) -> String {
+    contract_home_path(std::path::Path::new(value))
+}
+
+/// Contract a path under the current user's home directory to `~`.
+#[cfg(feature = "std")]
+pub fn contract_home_path(value: &std::path::Path) -> String {
+    let home = if cfg!(windows) {
+        std::env::var_os("USERPROFILE")
+    } else {
+        std::env::var_os("HOME")
+    };
+
+    let Some(home) = home else {
+        return value.to_string_lossy().into_owned();
+    };
+
+    let home = std::path::Path::new(&home);
+    if value == home {
+        return "~".to_string();
+    }
+
+    if let Ok(relative) = value.strip_prefix(home) {
+        let relative = relative.to_string_lossy().replace('\\', "/");
+        return format!("~/{relative}");
+    }
+
+    value.to_string_lossy().into_owned()
+}
+
 // ============================================================================
 // Duration Parsing Functions
 // ============================================================================

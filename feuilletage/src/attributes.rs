@@ -583,6 +583,12 @@
 //!     normalized: PathBuf,
 //!     #[feuilletage(expand_home)]
 //!     home: String,
+//!     #[feuilletage(expand_home)]
+//!     home_path: PathBuf,
+//!     #[feuilletage(expand_home)]
+//!     optional_home: Option<String>,
+//!     #[feuilletage(expand_home)]
+//!     optional_home_path: Option<PathBuf>,
 //!     #[feuilletage(default, env = "FEUILLETAGE_DOCS_MISSING_ENV")]
 //!     env_value: String,
 //!     #[feuilletage(default, deprecated = "use name", secret)]
@@ -606,7 +612,7 @@
 //!
 //! let mut config = Config::default();
 //! config.load_yaml(
-//!     "old_name: demo\ntitle: ' hello '\ntags: [' one ', two]\nretries: 2\ntimeout: 2s\nmutable: editable\nhome: ~/docs\n",
+//!     "old_name: demo\ntitle: ' hello '\ntags: [' one ', two]\nretries: 2\ntimeout: 2s\nmutable: editable\nhome: ~/docs\nhome_path: ~/config\noptional_home: ~/cache\noptional_home_path: ~/state\n",
 //!     Context::new(Source::Programmatic, Level::User),
 //! );
 //! let value: FieldOptions = config.deserialize().unwrap();
@@ -617,9 +623,18 @@
 //! assert_eq!(value.timeout, 2);
 //! assert_eq!(value.mutable, "editable");
 //! assert_eq!(value.home, format!("{}/docs", std::env::var("HOME").unwrap()));
+//! assert_eq!(value.home_path, PathBuf::from(format!("{}/config", std::env::var("HOME").unwrap())));
+//! assert_eq!(value.optional_home, Some(format!("{}/cache", std::env::var("HOME").unwrap())));
+//! assert_eq!(value.optional_home_path, Some(PathBuf::from(format!("{}/state", std::env::var("HOME").unwrap()))));
 //! assert_eq!(value.scope, "user");
 //! assert_eq!(value.computed_scope, "user");
 //! assert_eq!(value.mirror, "stable");
+//!
+//! let serialized = serde_json::to_value(&value).unwrap();
+//! assert_eq!(serialized["home"], serde_json::Value::String("~/docs".into()));
+//! assert_eq!(serialized["home_path"], serde_json::Value::String("~/config".into()));
+//! assert_eq!(serialized["optional_home"], serde_json::Value::String("~/cache".into()));
+//! assert_eq!(serialized["optional_home_path"], serde_json::Value::String("~/state".into()));
 //!
 //! let mut templates = Config::default();
 //! templates.load_yaml(
@@ -629,6 +644,16 @@
 //! let templates: TemplateOptions = templates.deserialize().unwrap();
 //! assert_eq!(templates.greeting, "hello demo");
 //! # }
+//! ```
+//!
+//! Unsupported field types fail at compile time:
+//!
+//! ```compile_fail
+//! #[derive(feuilletage::Config)]
+//! struct InvalidExpandHomeConfig {
+//!     #[feuilletage(expand_home)]
+//!     count: i32,
+//! }
 //! ```
 //!
 //! Feature-backed validators are executable when their corresponding feature

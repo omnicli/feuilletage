@@ -23,7 +23,8 @@ use crate::gen_validation::generate_validation_code;
 use crate::gen_vec::generate_vec_deserialization;
 use crate::helpers::{
     convert_string_default, extract_map_value_type, get_inner_type, get_map_kind, get_type_name,
-    is_bool_type, is_float_type, is_option_type, is_signed_int_type, is_string_type,
+    is_bool_type, is_float_type, is_option_type, is_pathbuf_type, is_signed_int_type,
+    is_string_type, option_inner_type,
     is_unsigned_int_type, parse_transform_path,
 };
 
@@ -3165,6 +3166,20 @@ fn generate_field_deserialization(
     } else {
         attrs.transform.clone()
     };
+
+    if transform.as_deref() == Some("expand_home") {
+        let supported = is_string_type(field_type)
+            || is_pathbuf_type(field_type)
+            || option_inner_type(field_type)
+                .is_some_and(|inner| is_string_type(inner) || is_pathbuf_type(inner));
+        if !supported {
+            return syn::Error::new_spanned(
+                field_type,
+                "`expand_home` is only supported on String, PathBuf, Option<String>, or Option<PathBuf>",
+            )
+            .to_compile_error();
+        }
+    }
 
     // Determine default value:
     // 1. Use explicit default if provided (with auto-conversion for String types)
