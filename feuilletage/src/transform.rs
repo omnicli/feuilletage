@@ -614,6 +614,24 @@ pub fn normalize_path<S: SourceType, L: LevelType>(
 /// including `~other-user/...`, are left unchanged.
 ///
 /// Non-string values are left unchanged.
+///
+/// # Examples
+///
+/// ```
+/// use feuilletage::{Context, ContextValue, Level, Source};
+/// use feuilletage::transform::expand_home;
+///
+/// let ctx = Context::new(Source::Programmatic, Level::User);
+/// let mut value = ContextValue::string("~/config", ctx.clone());
+/// let home_var = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
+/// let home = std::env::var(home_var).unwrap();
+///
+/// expand_home(&mut value, &ctx).unwrap();
+///
+/// if let ContextValue::String(path, _) = value {
+///     assert_eq!(path, format!("{home}/config"));
+/// }
+/// ```
 #[cfg(feature = "std")]
 pub fn expand_home<S: SourceType, L: LevelType>(
     value: &mut ContextValue<S, L>,
@@ -640,12 +658,33 @@ pub fn expand_home<S: SourceType, L: LevelType>(
 }
 
 /// Contract a string path under the current user's home directory to `~`.
+///
+/// # Examples
+///
+/// ```
+/// use feuilletage::transform::contract_home_str;
+///
+/// let home_var = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
+/// let home = std::env::var(home_var).unwrap();
+/// assert_eq!(contract_home_str(&format!("{home}/config")), "~/config");
+/// ```
 #[cfg(feature = "std")]
 pub fn contract_home_str(value: &str) -> String {
     contract_home_path(std::path::Path::new(value))
 }
 
 /// Contract a path under the current user's home directory to `~`.
+///
+/// # Examples
+///
+/// ```
+/// use std::path::Path;
+/// use feuilletage::transform::contract_home_path;
+///
+/// let home_var = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
+/// let home = std::env::var(home_var).unwrap();
+/// assert_eq!(contract_home_path(Path::new(&format!("{home}/config"))), "~/config");
+/// ```
 #[cfg(feature = "std")]
 pub fn contract_home_path(value: &std::path::Path) -> String {
     let home = if cfg!(windows) {

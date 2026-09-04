@@ -134,7 +134,8 @@ fn test_expand_home() {
         data_dir: String,
     }
 
-    let home = std::env::var("HOME").expect("HOME should be set for this test");
+    let home_var = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
+    let home = std::env::var(home_var).expect("home directory should be set for this test");
     let mut config = Config::default();
     config.load_json(
         r#"{"data_dir": "~/foo"}"#,

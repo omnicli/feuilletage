@@ -622,10 +622,12 @@
 //! assert_eq!(value.retries, 4);
 //! assert_eq!(value.timeout, 2);
 //! assert_eq!(value.mutable, "editable");
-//! assert_eq!(value.home, format!("{}/docs", std::env::var("HOME").unwrap()));
-//! assert_eq!(value.home_path, PathBuf::from(format!("{}/config", std::env::var("HOME").unwrap())));
-//! assert_eq!(value.optional_home, Some(format!("{}/cache", std::env::var("HOME").unwrap())));
-//! assert_eq!(value.optional_home_path, Some(PathBuf::from(format!("{}/state", std::env::var("HOME").unwrap()))));
+//! let home_var = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
+//! let home = std::env::var(home_var).unwrap();
+//! assert_eq!(value.home, format!("{home}/docs"));
+//! assert_eq!(value.home_path, PathBuf::from(format!("{home}/config")));
+//! assert_eq!(value.optional_home, Some(format!("{home}/cache")));
+//! assert_eq!(value.optional_home_path, Some(PathBuf::from(format!("{home}/state"))));
 //! assert_eq!(value.scope, "user");
 //! assert_eq!(value.computed_scope, "user");
 //! assert_eq!(value.mirror, "stable");
