@@ -11,7 +11,7 @@ license = "MIT OR Apache-2.0"
 repository = "https://github.com/omnicli/feuilletage"
 
 [workspace.dependencies]
-feuilletage-macros = { version = "=0.1.1", path = "feuilletage-macros" }
+feuilletage-macros = { version = "=0.1.2", path = "feuilletage-macros" }
 serde = { version = "1.0.229", default-features = false, features = ["alloc", "derive"] }
 serde_json = { version = "1.0.151", default-features = false, features = ["alloc"] }
 serde-saphyr = "1.1.0"
