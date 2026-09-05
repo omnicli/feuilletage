@@ -259,6 +259,7 @@ fn config_value_to_toml_sorted<S: SourceType, L: LevelType>(
 /// # Returns
 ///
 /// A `Result` containing the JSON string, or a [`Error`] if serialization fails.
+/// Object keys are sorted alphabetically, including nested objects.
 ///
 /// # Availability
 ///
@@ -283,7 +284,8 @@ fn config_value_to_toml_sorted<S: SourceType, L: LevelType>(
 /// ```
 #[cfg(feature = "json")]
 pub fn to_json<T: Serialize>(value: &T) -> Result<String, Error> {
-    serde_json::to_string_pretty(value).map_err(|e| Error::InvalidValue {
+    let value = sorted_json_value(value)?;
+    serde_json::to_string_pretty(&value).map_err(|e| Error::InvalidValue {
         path: "<root>".to_string(),
         message: format!("JSON serialization error: {}", e),
     })
@@ -301,6 +303,7 @@ pub fn to_json<T: Serialize>(value: &T) -> Result<String, Error> {
 /// # Returns
 ///
 /// A `Result` containing the compact JSON string, or a [`Error`] if serialization fails.
+/// Object keys are sorted alphabetically, including nested objects.
 ///
 /// # Availability
 ///
@@ -324,7 +327,8 @@ pub fn to_json<T: Serialize>(value: &T) -> Result<String, Error> {
 /// ```
 #[cfg(feature = "json")]
 pub fn to_json_compact<T: Serialize>(value: &T) -> Result<String, Error> {
-    serde_json::to_string(value).map_err(|e| Error::InvalidValue {
+    let value = sorted_json_value(value)?;
+    serde_json::to_string(&value).map_err(|e| Error::InvalidValue {
         path: "<root>".to_string(),
         message: format!("JSON serialization error: {}", e),
     })
@@ -342,6 +346,7 @@ pub fn to_json_compact<T: Serialize>(value: &T) -> Result<String, Error> {
 /// # Returns
 ///
 /// A `Result` containing the YAML string, or a [`Error`] if serialization fails.
+/// Mapping keys are sorted alphabetically, including nested mappings.
 ///
 /// # Availability
 ///
@@ -366,10 +371,41 @@ pub fn to_json_compact<T: Serialize>(value: &T) -> Result<String, Error> {
 /// ```
 #[cfg(feature = "yaml")]
 pub fn to_yaml<T: Serialize>(value: &T) -> Result<String, Error> {
-    serde_saphyr::to_string(value).map_err(|e| Error::InvalidValue {
+    let value = sorted_json_value(value)?;
+    serde_saphyr::to_string(&value).map_err(|e| Error::InvalidValue {
         path: "<root>".to_string(),
         message: format!("YAML serialization error: {}", e),
     })
+}
+
+fn sort_json_keys(value: serde_json::Value) -> serde_json::Value {
+    match value {
+        serde_json::Value::Object(object) => {
+            let mut entries: Vec<_> = object.into_iter().collect();
+            entries.sort_by(|(left, _), (right, _)| left.cmp(right));
+
+            serde_json::Value::Object(
+                entries
+                    .into_iter()
+                    .map(|(key, value)| (key, sort_json_keys(value)))
+                    .collect(),
+            )
+        }
+        serde_json::Value::Array(values) => {
+            serde_json::Value::Array(values.into_iter().map(sort_json_keys).collect())
+        }
+        value => value,
+    }
+}
+
+#[cfg(any(feature = "json", feature = "yaml"))]
+fn sorted_json_value<T: Serialize>(value: &T) -> Result<serde_json::Value, Error> {
+    serde_json::to_value(value)
+        .map(sort_json_keys)
+        .map_err(|e| Error::InvalidValue {
+            path: "<root>".to_string(),
+            message: format!("serialization error: {}", e),
+        })
 }
 
 /// Serialize a value to a TOML string.
@@ -384,6 +420,7 @@ pub fn to_yaml<T: Serialize>(value: &T) -> Result<String, Error> {
 /// # Returns
 ///
 /// A `Result` containing the TOML string, or a [`Error`] if serialization fails.
+/// Table keys are sorted alphabetically, including nested tables.
 ///
 /// # Availability
 ///
@@ -410,10 +447,30 @@ pub fn to_yaml<T: Serialize>(value: &T) -> Result<String, Error> {
 /// ```
 #[cfg(feature = "toml")]
 pub fn to_toml<T: Serialize>(value: &T) -> Result<String, Error> {
-    toml::to_string_pretty(value).map_err(|e| Error::InvalidValue {
+    let value = toml::Value::try_from(value).map_err(|e| Error::InvalidValue {
+        path: "<root>".to_string(),
+        message: format!("TOML serialization error: {}", e),
+    })?;
+    toml::to_string_pretty(&sort_toml_keys(value)).map_err(|e| Error::InvalidValue {
         path: "<root>".to_string(),
         message: format!("TOML serialization error: {}", e),
     })
+}
+
+#[cfg(feature = "toml")]
+fn sort_toml_keys(value: toml::Value) -> toml::Value {
+    match value {
+        toml::Value::Array(values) => {
+            toml::Value::Array(values.into_iter().map(sort_toml_keys).collect())
+        }
+        toml::Value::Table(table) => toml::Value::Table(
+            table
+                .into_iter()
+                .map(|(key, value)| (key, sort_toml_keys(value)))
+                .collect(),
+        ),
+        value => value,
+    }
 }
 
 /// Serialize a value to a string using the specified format.

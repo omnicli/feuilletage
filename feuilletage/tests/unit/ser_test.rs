@@ -142,7 +142,7 @@ fn test_to_json_compact_function() {
     assert!(json.contains("\"test\""));
     // Verify it's compact (no newlines)
     assert!(!json.contains('\n'));
-    assert_eq!(json, r#"{"name":"test","count":42}"#);
+    assert_eq!(json, r#"{"count":42,"name":"test"}"#);
 }
 
 #[test]

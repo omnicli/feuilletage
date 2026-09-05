@@ -659,6 +659,9 @@ pub fn expand_home<S: SourceType, L: LevelType>(
 
 /// Contract a string path under the current user's home directory to `~`.
 ///
+/// Use this with the `compact_home` derive attribute when serialized output
+/// should use the compact home-directory form.
+///
 /// # Examples
 ///
 /// ```

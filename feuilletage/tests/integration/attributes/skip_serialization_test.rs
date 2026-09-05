@@ -38,7 +38,7 @@ fn test_skip_unconditional_always_excluded() {
 
     // Test serialization - internal_state should NEVER be included
     let serialized = feuilletage::to_json_compact(&cfg).unwrap();
-    assert_eq!(serialized, r#"{"name":"test","count":10}"#);
+    assert_eq!(serialized, r#"{"count":10,"name":"test"}"#);
     assert!(
         !serialized.contains("internal_state"),
         "skip field should never be serialized"
