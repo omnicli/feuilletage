@@ -661,6 +661,7 @@
 //! Home expansion and compact serialization can be enabled independently:
 //!
 //! ```
+//! # #[cfg(feature = "std")] {
 //! #[derive(feuilletage::Config)]
 //! #[feuilletage(serialize_sort)]
 //! struct HomeConfig {
@@ -669,6 +670,7 @@
 //!     #[feuilletage(serialize_compact_home)]
 //!     compact: String,
 //! }
+//! # }
 //! ```
 //!
 //! Feature-backed validators are executable when their corresponding feature
