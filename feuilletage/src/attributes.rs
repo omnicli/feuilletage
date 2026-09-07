@@ -581,13 +581,13 @@
 //!     relative: PathBuf,
 //!     #[feuilletage(default_fn = "normalized_path", normalize_path)]
 //!     normalized: PathBuf,
-//!     #[feuilletage(expand_home, compact_home)]
+//!     #[feuilletage(expand_home, serialize_compact_home)]
 //!     home: String,
-//!     #[feuilletage(expand_home, compact_home)]
+//!     #[feuilletage(expand_home, serialize_compact_home)]
 //!     home_path: PathBuf,
-//!     #[feuilletage(expand_home, compact_home)]
+//!     #[feuilletage(expand_home, serialize_compact_home)]
 //!     optional_home: Option<String>,
-//!     #[feuilletage(expand_home, compact_home)]
+//!     #[feuilletage(expand_home, serialize_compact_home)]
 //!     optional_home_path: Option<PathBuf>,
 //!     #[feuilletage(default, env = "FEUILLETAGE_DOCS_MISSING_ENV")]
 //!     env_value: String,
@@ -662,10 +662,11 @@
 //!
 //! ```
 //! #[derive(feuilletage::Config)]
+//! #[feuilletage(serialize_sort)]
 //! struct HomeConfig {
 //!     #[feuilletage(expand_home)]
 //!     expanded: String,
-//!     #[feuilletage(compact_home)]
+//!     #[feuilletage(serialize_compact_home)]
 //!     compact: String,
 //! }
 //! ```

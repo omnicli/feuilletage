@@ -169,7 +169,7 @@ fn test_contract_home_is_opt_in() {
     struct PathConfig {
         #[feuilletage(expand_home)]
         expanded_only: String,
-        #[feuilletage(expand_home, compact_home)]
+        #[feuilletage(expand_home, serialize_compact_home)]
         compact: String,
     }
 

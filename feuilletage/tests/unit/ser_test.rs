@@ -142,7 +142,28 @@ fn test_to_json_compact_function() {
     assert!(json.contains("\"test\""));
     // Verify it's compact (no newlines)
     assert!(!json.contains('\n'));
-    assert_eq!(json, r#"{"count":42,"name":"test"}"#);
+    assert_eq!(json, r#"{"name":"test","count":42}"#);
+}
+
+#[test]
+#[cfg(feature = "json")]
+fn test_sorted_struct_serialization_is_opt_in() {
+    #[derive(feuilletage::Config)]
+    #[feuilletage(serialize_sort)]
+    struct TestConfig {
+        zeta: String,
+        alpha: i32,
+    }
+
+    let config = TestConfig {
+        zeta: "last".to_string(),
+        alpha: 1,
+    };
+
+    assert_eq!(
+        feuilletage::to_json_compact(&config).unwrap(),
+        r#"{"alpha":1,"zeta":"last"}"#
+    );
 }
 
 #[test]
