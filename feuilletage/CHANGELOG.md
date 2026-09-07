@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.1.3](https://github.com/omnicli/feuilletage/compare/v0.1.2...v0.1.3) - 2026-09-07
+
+### Added
+
+- deterministic serialization ([#11](https://github.com/omnicli/feuilletage/pull/11))
+
 ## [0.1.2](https://github.com/omnicli/feuilletage/compare/v0.1.1...v0.1.2) - 2026-09-05
 
 ### Added
