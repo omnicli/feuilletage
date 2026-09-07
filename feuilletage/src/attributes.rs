@@ -581,13 +581,13 @@
 //!     relative: PathBuf,
 //!     #[feuilletage(default_fn = "normalized_path", normalize_path)]
 //!     normalized: PathBuf,
-//!     #[feuilletage(expand_home)]
+//!     #[feuilletage(expand_home, serialize_compact_home)]
 //!     home: String,
-//!     #[feuilletage(expand_home)]
+//!     #[feuilletage(expand_home, serialize_compact_home)]
 //!     home_path: PathBuf,
-//!     #[feuilletage(expand_home)]
+//!     #[feuilletage(expand_home, serialize_compact_home)]
 //!     optional_home: Option<String>,
-//!     #[feuilletage(expand_home)]
+//!     #[feuilletage(expand_home, serialize_compact_home)]
 //!     optional_home_path: Option<PathBuf>,
 //!     #[feuilletage(default, env = "FEUILLETAGE_DOCS_MISSING_ENV")]
 //!     env_value: String,
@@ -656,6 +656,21 @@
 //!     #[feuilletage(expand_home)]
 //!     count: i32,
 //! }
+//! ```
+//!
+//! Home expansion and compact serialization can be enabled independently:
+//!
+//! ```
+//! # #[cfg(feature = "std")] {
+//! #[derive(feuilletage::Config)]
+//! #[feuilletage(serialize_sort)]
+//! struct HomeConfig {
+//!     #[feuilletage(expand_home)]
+//!     expanded: String,
+//!     #[feuilletage(serialize_compact_home)]
+//!     compact: String,
+//! }
+//! # }
 //! ```
 //!
 //! Feature-backed validators are executable when their corresponding feature

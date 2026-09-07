@@ -32,7 +32,7 @@ pub(crate) fn should_serialize_single_as_value(attrs: &FieldConfigAttributes) ->
 }
 
 fn expand_home_serialized_value(info: &SerializeFieldInfo) -> Option<proc_macro2::TokenStream> {
-    let enabled = info.attrs.expand_home || info.attrs.transform.as_deref() == Some("expand_home");
+    let enabled = info.attrs.compact_home;
     if !enabled {
         return None;
     }
@@ -72,12 +72,13 @@ fn expand_home_serialized_value(info: &SerializeFieldInfo) -> Option<proc_macro2
 pub(crate) fn generate_serialize_impl(
     name: &syn::Ident,
     fields: &syn::punctuated::Punctuated<syn::Field, syn::Token![,]>,
+    sort_fields: bool,
     impl_generics: syn::ImplGenerics,
     ty_generics: syn::TypeGenerics,
     where_clause: Option<&syn::WhereClause>,
 ) -> proc_macro2::TokenStream {
     // Collect field info
-    let field_infos: Vec<SerializeFieldInfo> = fields
+    let mut field_infos: Vec<SerializeFieldInfo> = fields
         .iter()
         .map(|field| {
             let field_name = field.ident.as_ref().unwrap().clone();
@@ -92,6 +93,18 @@ pub(crate) fn generate_serialize_impl(
             }
         })
         .collect();
+
+    if sort_fields {
+        field_infos.sort_by(|left, right| {
+            let left_key = left.attrs.rename.as_deref().unwrap_or(&left.field_name_str);
+            let right_key = right
+                .attrs
+                .rename
+                .as_deref()
+                .unwrap_or(&right.field_name_str);
+            left_key.cmp(right_key)
+        });
+    }
 
     // Check if any field has flatten attribute - requires special handling
     let has_flatten = field_infos.iter().any(|f| f.attrs.flatten);

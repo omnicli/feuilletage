@@ -100,7 +100,7 @@ impl<S: SourceType, L: LevelType> ContextValue<S, L> {
 
     /// Serialize to JSON
     ///
-    /// Keys are sorted alphabetically for consistent output.
+    /// Struct fields follow declaration order; object keys are sorted alphabetically.
     ///
     /// ```
     /// # #[cfg(feature = "json")] {
@@ -128,7 +128,7 @@ impl<S: SourceType, L: LevelType> ContextValue<S, L> {
 
     /// Serialize to YAML
     ///
-    /// Keys are sorted alphabetically for consistent output.
+    /// Struct fields follow declaration order; object keys are sorted alphabetically.
     ///
     /// ```
     /// # #[cfg(feature = "yaml")] {
@@ -150,7 +150,7 @@ impl<S: SourceType, L: LevelType> ContextValue<S, L> {
 
     /// Serialize to TOML
     ///
-    /// Keys are sorted alphabetically for consistent output.
+    /// Struct fields follow declaration order; table keys are sorted alphabetically.
     ///
     /// ```
     /// # #[cfg(feature = "toml")] {
@@ -259,6 +259,8 @@ fn config_value_to_toml_sorted<S: SourceType, L: LevelType>(
 /// # Returns
 ///
 /// A `Result` containing the JSON string, or a [`Error`] if serialization fails.
+/// Output ordering follows the [`serde::Serialize`] implementation. Structs
+/// derived with `#[feuilletage(serialize_sort)]` emit fields alphabetically.
 ///
 /// # Availability
 ///
@@ -301,6 +303,8 @@ pub fn to_json<T: Serialize>(value: &T) -> Result<String, Error> {
 /// # Returns
 ///
 /// A `Result` containing the compact JSON string, or a [`Error`] if serialization fails.
+/// Output ordering follows the [`serde::Serialize`] implementation. Structs
+/// derived with `#[feuilletage(serialize_sort)]` emit fields alphabetically.
 ///
 /// # Availability
 ///
@@ -342,6 +346,8 @@ pub fn to_json_compact<T: Serialize>(value: &T) -> Result<String, Error> {
 /// # Returns
 ///
 /// A `Result` containing the YAML string, or a [`Error`] if serialization fails.
+/// Output ordering follows the [`serde::Serialize`] implementation. Structs
+/// derived with `#[feuilletage(serialize_sort)]` emit fields alphabetically.
 ///
 /// # Availability
 ///
@@ -384,6 +390,8 @@ pub fn to_yaml<T: Serialize>(value: &T) -> Result<String, Error> {
 /// # Returns
 ///
 /// A `Result` containing the TOML string, or a [`Error`] if serialization fails.
+/// Output ordering follows the [`serde::Serialize`] implementation. Structs
+/// derived with `#[feuilletage(serialize_sort)]` emit fields alphabetically.
 ///
 /// # Availability
 ///

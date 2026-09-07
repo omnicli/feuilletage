@@ -44,6 +44,8 @@ pub(crate) struct StructAllowMapConfig {
 /// Container-level attributes for enums and structs
 #[derive(Default)]
 pub(crate) struct ContainerAttributes {
+    /// Sort serialized struct fields alphabetically by their serialized names
+    pub(crate) sort: bool,
     /// Parse this type through an intermediate wire type, then project it with
     /// `feuilletage::FromParsed`.
     pub(crate) parse_as: Option<syn::Type>,
@@ -143,6 +145,10 @@ fn try_parse_container_attributes(attrs: &[syn::Attribute]) -> syn::Result<Conta
         }
 
         attr.parse_nested_meta(|meta| {
+            if meta.path.is_ident("serialize_sort") {
+                container_attrs.sort = true;
+                return Ok(());
+            }
             if meta.path.is_ident("parse_as") {
                 let value = meta.value()?;
                 let value: syn::LitStr = value.parse()?;
@@ -786,6 +792,7 @@ pub(crate) struct FieldConfigAttributes {
     pub(crate) relative_path: bool,
     pub(crate) normalize_path: bool,
     pub(crate) expand_home: bool,
+    pub(crate) compact_home: bool,
     pub(crate) coerce: bool, // Enable liberal type coercion
     // Error handling mode
     pub(crate) on_error: Option<OnErrorMode>, // How to handle errors: skip (graceful), default, fail
@@ -866,6 +873,10 @@ fn try_parse_field_config_attributes(
             }
             if meta.path.is_ident("expand_home") {
                 config_attrs.expand_home = true;
+                return Ok(());
+            }
+            if meta.path.is_ident("serialize_compact_home") {
+                config_attrs.compact_home = true;
                 return Ok(());
             }
             if meta.path.is_ident("flatten") {

@@ -162,3 +162,26 @@ fn test_expand_home() {
     let result: PathConfig = config.deserialize().expect("Should succeed");
     assert_eq!(result.data_dir, "~other/foo");
 }
+
+#[test]
+fn test_contract_home_is_opt_in() {
+    #[derive(DeriveConfig, Debug)]
+    struct PathConfig {
+        #[feuilletage(expand_home)]
+        expanded_only: String,
+        #[feuilletage(expand_home, serialize_compact_home)]
+        compact: String,
+    }
+
+    let home_var = if cfg!(windows) { "USERPROFILE" } else { "HOME" };
+    let home = std::env::var(home_var).expect("home directory should be set for this test");
+    let value = PathConfig {
+        expanded_only: format!("{home}/expanded"),
+        compact: format!("{home}/compact"),
+    };
+
+    let yaml = feuilletage::to_yaml(&value).expect("should serialize to YAML");
+
+    assert!(yaml.contains(&format!("expanded_only: {home}/expanded")));
+    assert!(yaml.contains("compact: ~/compact"));
+}

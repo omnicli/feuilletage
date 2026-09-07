@@ -198,6 +198,7 @@ fn generate_projection_mutability_info_impl(
 /// - `#[feuilletage(relative_path)]` - Shorthand for `transform = "relative_path"`
 /// - `#[feuilletage(normalize_path)]` - Shorthand for `transform = "normalize_path"` (resolves `.` and `..`)
 /// - `#[feuilletage(expand_home)]` - Shorthand for `transform = "expand_home"` (expands `~`)
+/// - `#[feuilletage(serialize_compact_home)]` - Uses `~` for paths under the home directory when serializing
 /// - `#[feuilletage(duration)]` - Parse duration strings to seconds (default)
 /// - `#[feuilletage(duration(ms))]` - Parse duration strings to specified unit (shorthand)
 /// - `#[feuilletage(duration(unit = ms))]` - Parse duration strings to specified unit (explicit)
@@ -697,6 +698,7 @@ fn generate_struct_impl(
         generate_serialize_impl(
             name,
             fields,
+            container_attrs.sort,
             impl_generics.clone(),
             ty_generics.clone(),
             where_clause,
@@ -3166,7 +3168,7 @@ fn generate_field_deserialization(
         attrs.transform.clone()
     };
 
-    if transform.as_deref() == Some("expand_home") {
+    if transform.as_deref() == Some("expand_home") || attrs.compact_home {
         let supported = is_string_type(field_type)
             || is_pathbuf_type(field_type)
             || option_inner_type(field_type)
@@ -3174,7 +3176,7 @@ fn generate_field_deserialization(
         if !supported {
             return syn::Error::new_spanned(
                 field_type,
-                "`expand_home` is only supported on String, PathBuf, Option<String>, or Option<PathBuf>",
+                "`expand_home` and `serialize_compact_home` are only supported on String, PathBuf, Option<String>, or Option<PathBuf>",
             )
             .to_compile_error();
         }
