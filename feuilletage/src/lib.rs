@@ -1,5 +1,6 @@
 #![doc = include_str!(env!("FEUILLETAGE_README"))]
 #![cfg_attr(not(feature = "std"), no_std)]
+#![allow(rustdoc::redundant_explicit_links)]
 
 #[cfg(not(feature = "std"))]
 extern crate alloc;
