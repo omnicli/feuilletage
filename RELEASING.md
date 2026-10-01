@@ -119,7 +119,7 @@ release.
 ## Continuous integration
 
 Pull requests and `main` must pass formatting, strict Clippy, workspace builds
-and tests, Rust 1.88 checks, the feature matrix, bare-metal `no_std`, rustdoc
+and tests, Rust 1.89 checks, the feature matrix, bare-metal `no_std`, rustdoc
 and example coverage, all examples, `cargo-machete`, workspace package checks,
 release-helper tests, and the RustSec audit.
 
