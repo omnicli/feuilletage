@@ -902,10 +902,7 @@ fn generate_transparent_struct_impl(
         let idx = syn::Index::from(0);
         quote! { #idx }
     };
-    let local_var = field
-        .ident
-        .clone()
-        .unwrap_or_else(|| syn::Ident::new("__feuilletage_inner", proc_macro2::Span::call_site()));
+    let local_var = syn::Ident::new("__feuilletage_inner", proc_macro2::Span::call_site());
     // Helper to construct a `Self { field: expr }` (named) or `Self(expr)` (tuple).
     let construct = |inner: &proc_macro2::TokenStream| -> proc_macro2::TokenStream {
         if is_tuple {
