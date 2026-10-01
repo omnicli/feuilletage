@@ -44,7 +44,7 @@ jobs:
       - name: Install MSRV toolchain
         uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # 2026-08-05
         with:
-          toolchain: 1.88.0
+          toolchain: 1.89.0
 
       - name: Install nightly Rust toolchain
         uses: dtolnay/rust-toolchain@4360b52568e2003a75bf9bc1d59f33a8e3fc893c # 2026-08-05
@@ -57,15 +57,15 @@ jobs:
           toolchain: stable
 
       - name: Resolve current dependencies with the MSRV toolchain
-        run: cargo +1.88.0 update
+        run: cargo +1.89.0 update
 
       - name: Check current resolution on stable
         run: cargo +stable check --workspace --all-targets --all-features --locked
 
       - name: Check current resolution on the MSRV
         run: |
-          cargo +1.88.0 check -p feuilletage --lib --all-features --locked
-          cargo +1.88.0 check -p feuilletage-macros --all-features --locked
+          cargo +1.89.0 check -p feuilletage --lib --all-features --locked
+          cargo +1.89.0 check -p feuilletage-macros --all-features --locked
 
       - name: Install cargo-audit
         uses: taiki-e/install-action@742a3317eac7bd62f91cd888b4eead5e784ba833 # v2
@@ -80,8 +80,8 @@ jobs:
           cp Cargo.lock "$RUNNER_TEMP/Cargo.lock.current"
           cargo +nightly update -Z direct-minimal-versions
           cargo audit
-          cargo +1.88.0 check -p feuilletage --lib --all-features --locked
-          cargo +1.88.0 check -p feuilletage-macros --all-features --locked
+          cargo +1.89.0 check -p feuilletage --lib --all-features --locked
+          cargo +1.89.0 check -p feuilletage-macros --all-features --locked
           cp "$RUNNER_TEMP/Cargo.lock.current" Cargo.lock
 
       - name: Detect lockfile update
@@ -121,12 +121,12 @@ jobs:
               --base main \
               --head "$PR_BRANCH" \
               --title "chore(deps): refresh Cargo.lock" \
-              --body "Refreshes the checked-in lockfile within existing manifest constraints. Stable, Rust 1.88, direct-minimum, and RustSec checks passed before this PR was opened."
+              --body "Refreshes the checked-in lockfile within existing manifest constraints. Stable, Rust 1.89, direct-minimum, and RustSec checks passed before this PR was opened."
           else
             gh pr edit "$pr_number" \
               --repo "$GITHUB_REPOSITORY" \
               --title "chore(deps): refresh Cargo.lock" \
-              --body "Refreshes the checked-in lockfile within existing manifest constraints. Stable, Rust 1.88, direct-minimum, and RustSec checks passed before this PR was updated."
+              --body "Refreshes the checked-in lockfile within existing manifest constraints. Stable, Rust 1.89, direct-minimum, and RustSec checks passed before this PR was updated."
           fi
 
       - name: Close obsolete lockfile pull request

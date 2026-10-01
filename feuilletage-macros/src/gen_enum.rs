@@ -195,7 +195,7 @@ fn generate_tagged_enum_impl(
 
                         // Note: Errors are recorded but deserialization continues with defaults
                         Ok(#name::#variant_name {
-                            #(#field_names: #field_names),*
+                            #(#field_names),*
                         })
                     }
                 }
@@ -286,7 +286,7 @@ fn generate_tagged_enum_impl(
                     {
                         #(#field_deserializations)*
                         return Ok(#name::#fallback_name {
-                            #(#field_names: #field_names),*
+                            #(#field_names),*
                         })
                     }
                 }
@@ -726,7 +726,7 @@ fn generate_untagged_enum_impl(
                                         #(#field_deserializations)*
 
                                         Ok(#name::#variant_name {
-                                            #(#field_names: #field_names),*
+                                            #(#field_names),*
                                         })
                                     })()
                                 };
@@ -857,7 +857,7 @@ fn generate_untagged_enum_impl(
                         if let feuilletage::ContextValue::Object(obj, _) = value {
                             #(#field_deserializations)*
                             Ok(#name::#fallback_name {
-                                #(#field_names: #field_names),*
+                                #(#field_names),*
                             })
                         } else {
                             Err(feuilletage::Error::InvalidValue {
@@ -1011,7 +1011,7 @@ fn generate_untagged_variant_construction(
                                 (|| -> Result<#enum_name, feuilletage::Error> {
                                     #(#field_deserializations)*
                                     Ok(#enum_name::#variant_name {
-                                        #(#field_names: #field_names),*
+                                        #(#field_names),*
                                     })
                                 })()
                             };

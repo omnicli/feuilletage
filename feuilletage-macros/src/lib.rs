@@ -841,7 +841,7 @@ fn generate_struct_impl(
                 #template_resolution
 
                 let mut __result = Self {
-                    #(#field_names: #field_names),*
+                    #(#field_names),*
                 };
 
                 #post_process_call
